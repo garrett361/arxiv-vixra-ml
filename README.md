@@ -17,4 +17,4 @@ The present repo consists of the following directories:
 
 ## Data
 
-The data used in the preceding notebooks was gleaned from [Kaggle's arXiv Dataset](https://www.kaggle.com/Cornell-University/arxiv) and scraping from [viXra](https://vixra.org).  Planning to link to the filtered, combined dataset used in this project at a later date.
+The data used in the preceding notebooks was gleaned from [Kaggle's arXiv Dataset](https://www.kaggle.com/Cornell-University/arxiv) and scraping from [viXra](https://vixra.org).  Planning to link to the filtered, combined dataset used in this project at a later date.  Notebooks cannot be run as is, without relevant `.feather` files.
