@@ -1,12 +1,15 @@
-from . import *
+import unicodedata
+import unidecode
 
 # Filter ascii chars by type
 ascii_all_lower = set(chr(i).lower() for i in range(128))
-ascii_control = set(ch for ch in ascii_all_lower if unicodedata.category(ch)[0]=='C')
+ascii_control = set(
+    ch for ch in ascii_all_lower if unicodedata.category(ch)[0] == 'C')
 ascii_all_lower_alpha_num = {ch for ch in ascii_all_lower if ch.isalnum()}
 ascii_punctuation = ascii_all_lower - ascii_control - ascii_all_lower_alpha_num
 
-def ascii_lower_char_normalizer(ch):
+
+def ascii_lower_char_normalizer(ch: str) -> str:
     """Normalizing lower case ascii characters.  Throw away all control
     characters and places spaces around other non-alpha-numeric characters.
     """
@@ -18,7 +21,8 @@ def ascii_lower_char_normalizer(ch):
     # All control characters mapped to blank space.
     return ' '
 
-def text_normalizer(s):
+
+def text_normalizer(s: str) -> str:
     """Brutal normalization of text to ASCII."""
     s = s.strip()
     s = unidecode(s).lower()

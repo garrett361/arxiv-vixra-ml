@@ -1,8 +1,13 @@
-from . import *
-from .datasets import OneHotCharDataset, EmbeddingDataset
+import pandas as pd
+import pytorch_lightning as pl
+from torch.utils.data import DataLoader
+from typing import Optional, Union
 
-class OneHotCharDataModule(LightningDataModule):
-    """Simple LightningDataModule wrapper for torch one-hot-text datasets.
+from .datasets import OneHotCharDataset, EmbeddingDataset, OneHotCharCheatingDataset, EmbeddingCheatingDataset
+
+
+class OneHotCharDataModule(pl.LightningDataModule):
+    """Simple pl.LightningDataModule wrapper for torch one-hot-text datasets.
 
     Description
     ----------
@@ -11,14 +16,13 @@ class OneHotCharDataModule(LightningDataModule):
     assumed to be returning one-hot encoded text via their `__getitem__`
     methods.
 
-
     Args
     ----------
     `train_data`: pd.DataFrame or str
         DataFrame object or path to training data feather file.
     `val_data`: pd.DataFrame or str
         DataFrame object or path to training data feather file.
-    `chars`: pd.DataFrame or str
+    `tokens`: pd.DataFrame or str
         DataFrame object or path to character feather file.
     `text_column`: str
         Column in data feather file containing text, e.g. `'title'`
@@ -40,15 +44,16 @@ class OneHotCharDataModule(LightningDataModule):
     `check_normalization`: bool, optional, default = True
         Check whether the text data was normalized according to text_normalizer.
 
-    Notable Methods 
+    Notable Methods
     ----------
     `test_dataloader`
         Not-yet implemented as to protect against accidentally viewing test set.
      """
+
     def __init__(self,
-                 train_data: Union[str, DF],
-                 val_data: Union[str, DF],
-                 chars: Union[str, DF],
+                 train_data: Union[str, pd.DataFrame],
+                 val_data: Union[str, pd.DataFrame],
+                 tokens: Union[str, pd.DataFrame],
                  text_column: str,
                  seq_len: int,
                  test_data_feather_path: Optional[str] = None,
@@ -61,7 +66,7 @@ class OneHotCharDataModule(LightningDataModule):
         super().__init__()
         self.train_data = train_data
         self.val_data = val_data
-        self.chars = chars
+        self.tokens = tokens
         self.text_column = text_column
         self.seq_len = seq_len
         self.test_data_feather_path = test_data_feather_path
@@ -71,23 +76,23 @@ class OneHotCharDataModule(LightningDataModule):
         self.persistent_workers = persistent_workers
         self.sample_size = sample_size
         self.check_normalization = check_normalization
-        
 
-    def setup(self, stage: Optional[str] ='fit') -> None:
-        if stage == 'fit' or stage == None:
+    def setup(self,
+              stage: Optional[str] = 'fit') -> None:
+        if stage == 'fit' or stage is None:
             self._train_dataset = OneHotCharDataset(self.train_data,
-                                                       self.chars,
-                                                       self.text_column,
-                                                       self.seq_len,
-                                                       sample_size=self.sample_size,
-                                                       check_normalization=self.check_normalization)
+                                                    self.tokens,
+                                                    self.text_column,
+                                                    self.seq_len,
+                                                    sample_size=self.sample_size,
+                                                    check_normalization=self.check_normalization)
             self._val_dataset = OneHotCharDataset(self.val_data,
-                                                     self.chars,
-                                                     self.text_column,
-                                                     self.seq_len,
-                                                     sample_size=self.sample_size,
-                                                     check_normalization=self.check_normalization)
-            
+                                                  self.tokens,
+                                                  self.text_column,
+                                                  self.seq_len,
+                                                  sample_size=self.sample_size,
+                                                  check_normalization=self.check_normalization)
+
         if stage == 'test':
             raise NotImplementedError('Should not be using test dataset yet.')
 
@@ -99,12 +104,12 @@ class OneHotCharDataModule(LightningDataModule):
                                   pin_memory=self.pin_memory,
                                   persistent_workers=self.persistent_workers)
         return train_loader
-    
+
     def val_dataloader(self) -> DataLoader:
         # Best pracice for val/test sets is to have shuffle=False.
         val_loader = DataLoader(self._val_dataset,
                                 batch_size=self.batch_size,
-                                shuffle=False,              
+                                shuffle=False,
                                 num_workers=self.num_workers,
                                 pin_memory=self.pin_memory,
                                 persistent_workers=self.persistent_workers)
@@ -112,9 +117,10 @@ class OneHotCharDataModule(LightningDataModule):
 
     def test_dataloader(self) -> DataLoader:
         raise NotImplementedError('Should not be using test dataset yet.')
-        
-class EmbeddingDataModule(LightningDataModule):
-    """Simple LightningDataModule wrapper for torch embedded text datasets.
+
+
+class EmbeddingDataModule(pl.LightningDataModule):
+    """Simple pl.LightningDataModule wrapper for torch embedded text datasets.
 
     Args
     ----------
@@ -122,7 +128,7 @@ class EmbeddingDataModule(LightningDataModule):
         DataFrame object or path to training data feather file.
     `val_data`: pd.DataFrame or str
         DataFrame object or path to training data feather file.
-    `vocab`: pd.DataFrame or str
+    `tokens`: pd.DataFrame or str
         DataFrame object or path to vocabulary feather file.
     `text_column`: str
         Column in data feather file containing text, e.g. `'title'`
@@ -144,15 +150,16 @@ class EmbeddingDataModule(LightningDataModule):
     `check_normalization`: bool, optional, default = True
         Check whether the text data was normalized according to text_normalizer.
 
-    Notable Methods 
+    Notable Methods
     ----------
     `test_dataloader`
         Not-yet implemented as to protect against accidentally viewing test set.
      """
+
     def __init__(self,
-                 train_data: Union[str, DF],
-                 val_data: Union[str, DF],
-                 vocab: Union[str, DF],
+                 train_data: Union[str, pd.DataFrame],
+                 val_data: Union[str, pd.DataFrame],
+                 tokens: Union[str, pd.DataFrame],
                  text_column: str,
                  seq_len: int,
                  test_data_feather_path: Optional[str] = None,
@@ -165,7 +172,7 @@ class EmbeddingDataModule(LightningDataModule):
         super().__init__()
         self.train_data = train_data
         self.val_data = val_data
-        self.vocab = vocab
+        self.tokens = tokens
         self.text_column = text_column
         self.seq_len = seq_len
         self.test_data_feather_path = test_data_feather_path
@@ -175,23 +182,23 @@ class EmbeddingDataModule(LightningDataModule):
         self.persistent_workers = persistent_workers
         self.sample_size = sample_size
         self.check_normalization = check_normalization
-        
 
-    def setup(self, stage: Optional[str] ='fit') -> None:
-        if stage == 'fit' or stage == None:
+    def setup(self,
+              stage: Optional[str] = 'fit') -> None:
+        if stage == 'fit' or stage is None:
             self._train_dataset = EmbeddingDataset(self.train_data,
-                                                   self.vocab,
+                                                   self.tokens,
                                                    self.text_column,
                                                    self.seq_len,
                                                    sample_size=self.sample_size,
                                                    check_normalization=self.check_normalization)
             self._val_dataset = EmbeddingDataset(self.val_data,
-                                                 self.vocab,
+                                                 self.tokens,
                                                  self.text_column,
                                                  self.seq_len,
                                                  sample_size=self.sample_size,
                                                  check_normalization=self.check_normalization)
-            
+
         if stage == 'test':
             raise NotImplementedError('Should not be using test dataset yet.')
 
@@ -203,12 +210,12 @@ class EmbeddingDataModule(LightningDataModule):
                                   pin_memory=self.pin_memory,
                                   persistent_workers=self.persistent_workers)
         return train_loader
-    
+
     def val_dataloader(self) -> DataLoader:
         # Best pracice for val/test sets is to have shuffle=False.
         val_loader = DataLoader(self._val_dataset,
                                 batch_size=self.batch_size,
-                                shuffle=False,              
+                                shuffle=False,
                                 num_workers=self.num_workers,
                                 pin_memory=self.pin_memory,
                                 persistent_workers=self.persistent_workers)
@@ -216,3 +223,66 @@ class EmbeddingDataModule(LightningDataModule):
 
     def test_dataloader(self) -> DataLoader:
         raise NotImplementedError('Should not be using test dataset yet.')
+
+# BELOW: Datamodules for testing architectures' ability to cheat. Not exported with *.
+
+
+class EmbeddingDataCheatingModule(EmbeddingDataModule):
+    """For use when testing the ability of a model to cheat via technical clues only.
+    """
+
+    def __init__(self,
+                 *args,
+                 **kwargs) -> None:
+        kwargs = {**kwargs, **{'check_normalization': False}}
+        super().__init__(*args, **kwargs)
+
+    def setup(self,
+              stage: Optional[str] = 'fit') -> None:
+        if stage == 'fit' or stage is None:
+            self._train_dataset = EmbeddingCheatingDataset(self.train_data,
+                                                           self.tokens,
+                                                           self.text_column,
+                                                           self.seq_len,
+                                                           sample_size=self.sample_size,
+                                                           check_normalization=self.check_normalization)
+            self._val_dataset = EmbeddingCheatingDataset(self.val_data,
+                                                         self.tokens,
+                                                         self.text_column,
+                                                         self.seq_len,
+                                                         sample_size=self.sample_size,
+                                                         check_normalization=self.check_normalization)
+
+        if stage == 'test':
+            raise NotImplementedError('Should not be using test dataset yet.')
+
+
+class OneHotCharDataCheatingModule(OneHotCharDataModule):
+    """For use when testing the ability of a model to cheat via technical clues
+    only.
+    """
+
+    def __init__(self,
+                 *args,
+                 **kwargs) -> None:
+        kwargs = {**kwargs, **{'check_normalization': False}}
+        super().__init__(*args, **kwargs)
+
+    def setup(self,
+              stage: Optional[str] = 'fit') -> None:
+        if stage == 'fit' or stage is None:
+            self._train_dataset = OneHotCharCheatingDataset(self.train_data,
+                                                            self.tokens,
+                                                            self.text_column,
+                                                            self.seq_len,
+                                                            sample_size=self.sample_size,
+                                                            check_normalization=self.check_normalization)
+            self._val_dataset = OneHotCharCheatingDataset(self.val_data,
+                                                          self.tokens,
+                                                          self.text_column,
+                                                          self.seq_len,
+                                                          sample_size=self.sample_size,
+                                                          check_normalization=self.check_normalization)
+
+        if stage == 'test':
+            raise NotImplementedError('Should not be using test dataset yet.')
