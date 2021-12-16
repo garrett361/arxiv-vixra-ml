@@ -5,8 +5,7 @@ The goal of the project is to accurately assess whether a given paper is from [a
 
 ## Data
 
-The arXiv data used in the preceding notebooks was gleaned from [Kaggle's arXiv Dataset](https://www.kaggle.com/Cornell-University/arxiv), while the viXra data was scraped from [viXra](https://vixra.org) and [can be downloaded here](https://www.dropbox.com/s/4gw9wv90kqyeh95/vixra_raw.feather?dl=0) as a `.feather` file.
-
+The arXiv data used in the preceding notebooks was gleaned from [Kaggle's arXiv Dataset](https://www.kaggle.com/Cornell-University/arxiv), while the viXra data was scraped from [viXra](https://vixra.org) and [can be downloaded here](https://www.dropbox.com/s/4gw9wv90kqyeh95/vixra_raw.feather?dl=0) as an 18MB `.feather` file.
 
 
 ## Setup and Workflow
