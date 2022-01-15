@@ -1,20 +1,49 @@
-from .embedding import string_to_ints, ints_to_string
-from .one_hot import one_hot_encoding, one_hot_decoding
-from .text_normalizer import text_normalizer
-from .callbacks import WandbTextCallback
-from .datamodules import OneHotCharDataModule, EmbeddingDataModule
-from .recurrent_models import LitOneHotCharRecurrent, LitEmbeddingRecurrent
 from .baseline_models import LitOneHotFC
+from .callbacks import (
+    WandbAVPredictionCallback,
+    WandbTextGenerationCallback,
+    WandbVisualEmbeddingCallback,
+)
+from .datamodules import (
+    EmbeddingDataModuleAV,
+    EmbeddingDataModuleNextLM,
+    OneHotCharDataModuleAV,
+    OneHotCharDataModuleNextLM,
+)
+from .embedding_utils import (
+    embedding_cosine_heatmap,
+    idxs_to_str,
+    pca_3d_embedding_plotter_topk,
+    str_to_idxs,
+    tsne_3d_embedding_plotter_topk,
+)
+from .glove import CoMatrixBuilder, LitGloVe
+from .language_models import LitEmbeddingRNNNextLM, LitOneHotCharRNNNextLM
+from .one_hot_utils import one_hot_to_str, str_to_one_hot
+from .simple_recurrent import LitEmbeddingRNNAV, LitOneHotCharRNNAV
+from .text_normalizer import text_normalizer
 
-__all__ = ['LitOneHotFC',
-           'LitOneHotCharRecurrent',
-           'LitEmbeddingRecurrent',
-           'OneHotCharDataModule',
-           'EmbeddingDataModule',
-           'WandbTextCallback',
-           'text_normalizer',
-           'one_hot_encoding',
-           'one_hot_decoding',
-           'string_to_ints',
-           'ints_to_string',
-           ]
+__all__ = [
+    "CoMatrixBuilder",
+    "EmbeddingDataModuleAV",
+    "EmbeddingDataModuleNextLM",
+    "LitEmbeddingRNNAV",
+    "LitEmbeddingRNNNextLM",
+    "LitGloVe",
+    "LitOneHotCharRNNAV",
+    "LitOneHotCharRNNNextLM",
+    "LitOneHotFC",
+    "OneHotCharDataModuleAV",
+    "OneHotCharDataModuleNextLM",
+    "WandbAVPredictionCallback",
+    "WandbTextGenerationCallback",
+    "WandbVisualEmbeddingCallback",
+    "embedding_cosine_heatmap",
+    "idxs_to_str",
+    "str_to_idxs",
+    "one_hot_to_str",
+    "str_to_one_hot",
+    "pca_3d_embedding_plotter_topk",
+    "text_normalizer",
+    "tsne_3d_embedding_plotter_topk",
+]

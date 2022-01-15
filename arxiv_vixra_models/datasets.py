@@ -1,21 +1,30 @@
+from collections import defaultdict
+from copy import deepcopy
+from typing import Tuple, Optional, Union, Dict
+import warnings
+
 import numpy as np
 import pandas as pd
 import torch
 from torch.utils.data import Dataset
-from typing import Tuple, Optional, Union
 
-from .one_hot import one_hot_encoding
-from .embedding import string_to_ints
+from .embedding_utils import str_to_idxs
+from .one_hot_utils import str_to_one_hot
+
+PAD_IDX = 0
+UNK_IDX = 1
+BLANK_IDX = 0
 
 
-class OneHotCharDataset(Dataset):
-    """Dataset subclass for processing text in feather/csv files at character level.
+class OneHotCharDatasetAV(Dataset):
+    """Dataset for handling one-hot-encoded character-level text for
+    arxiv/vixra classification.
 
     Description
     ----------
     Assumes each row in the data feather file has 'source' column which
-    is either 'arxiv' or 'vixra' and that a separate feather file mapping characters
-    to integers (1-indexing assumed) exists. Outputs one-hot-encoded characters.
+    is either 'arxiv' or 'vixra'. Uses `tokens` to map characters to
+    integers.
 
     Args
     ----------
@@ -24,15 +33,14 @@ class OneHotCharDataset(Dataset):
     `tokens`: str or pd.DataFrame
         DataFrame object or path to character feather file.
     `text_column`: str
-        Column in data feather file containing text, e.g. `'title'`
-    or `'title'`.
+        Column in data feather file containing text, e.g. `'title'`.
     `seq_len`: int
-        How many characters are read in from the text.
-    `sample_size`: int or float or None, optional, default=None
+        Sequence length used for processing text.
+    `sample_size`: int or float or None, default=None
         If not None, include only a specific number of data points (if int) or
         specific fraction of data (if float), randomly chosen from the data.
         Applied separately to each training set: train, valid, and test.
-    `check_normalization`: bool, optional, default = True
+    `check_normalization`: bool, default = True
         Check whether the text data was normalized according to text_normalizer.
 
     Notable Methods
@@ -41,292 +49,157 @@ class OneHotCharDataset(Dataset):
         Returns `(text_tensor, source_int)`  where `text_tensor` is the
         one-hot encoded text and `source_int` is False, True if from `'arxiv'`,
          `'vixra'`, respectively, both pytorch tensors.
-     """
+    """
 
-    def __init__(self,
-                 data: Union[str, pd.DataFrame],
-                 tokens: Union[str, pd.DataFrame],
-                 text_column: str,
-                 seq_len: int,
-                 sample_size: Optional[Union[int, float, None]] = None,
-                 check_normalization: Optional[bool] = True) -> None:
+    def __init__(
+        self,
+        data: Union[str, pd.DataFrame],
+        tokens: Union[str, pd.DataFrame],
+        text_column: str,
+        seq_len: int,
+        sample_size: Optional[Union[int, float]] = None,
+        check_normalization: bool = True,
+    ) -> None:
         super().__init__()
+        self.text_column = text_column
+        self.seq_len = seq_len
+
         if isinstance(data, str):
-            self.data = pd.read_feather(data, columns=[text_column, 'source'])
+            self.data = pd.read_feather(data, columns=[text_column, "source"])
         else:
             # Important to copy, otherwise data input is modified.
-            self.data = data.copy()
+            self.data = deepcopy(data)
         if isinstance(tokens, str):
             self.tokens_df = pd.read_feather(tokens)
         else:
-            self.tokens_df = tokens
-        self._char_to_idx = dict(
-            zip(self.tokens_df['char'], self.tokens_df['idx']))
-        self.text_column = text_column
-        self.seq_len = seq_len
+            self.tokens_df = deepcopy(tokens)
+        self._char_to_idx = dict(zip(self.tokens_df["char"], self.tokens_df["idx"]))
+
         if sample_size is not None:
-            # .copy() needed in below steps to avoid onnx export errors.
             if isinstance(sample_size, float):
-                self.data = self.data.sample(frac=sample_size).copy()
+                self.data = self.data.sample(frac=sample_size)
             if isinstance(sample_size, int):
-                self.data = self.data.sample(sample_size).copy()
+                self.data = self.data.sample(sample_size)
         self.check_normalization = check_normalization
 
         # Perform one-hot encoding and encoding the source for arxiv/vixra.
-        self.data['source'] = self.data['source'].apply(
-            self._arxiv_vixra_encoding)
-        self.data[text_column] = self.data[text_column].apply(
-            self._one_hot_encoding)
+        self.data["source"] = self.data["source"].apply(self._arxiv_vixra_encoding)
+        self.data[text_column] = self.data[text_column].apply(self._str_to_one_hot)
 
-    def _arxiv_vixra_encoding(self,
-                              s: str) -> torch.Tensor:
-        if s == 'vixra':
+    def _arxiv_vixra_encoding(self, s: str) -> torch.Tensor:
+        if s == "vixra":
             return torch.tensor(True)
-        if s == 'arxiv':
+        if s == "arxiv":
             return torch.tensor(False)
-        raise ValueError(
-            'Source string must either be arxiv or vixra, invalid data.')
+        raise ValueError("Source string must either be arxiv or vixra, invalid data.")
 
-    def _one_hot_encoding(self,
-                          s: str) -> torch.Tensor:
-        return one_hot_encoding(s, self._char_to_idx, self.seq_len, self.check_normalization)
-
-    def __len__(self) -> int:
-        return len(self.data)
-
-    def __getitem__(self,
-                    idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
-        source = self.data.iloc[idx].loc['source']
-        one_hot_text = self.data.iloc[idx].loc[self.text_column]
-
-        return one_hot_text, source
-
-
-class EmbeddingDataset(Dataset):
-    """Dataset subclass for processing text in feather/csv files at word level.
-
-    Description
-    ----------
-
-    Assumes each row in the data feather file has 'source' column which
-    is either 'arxiv' or 'vixra' and that a separate feather file mapping words
-    to integers (1-indexing assumed) exists. Outputs integer-encoded words.
-
-    Args
-    ----------
-    `data`: str or pd.DataFrame
-        DataFrame object or path to data feather file.
-    `tokens`: str or pd.DataFrame
-        DataFrame object or path to vocabulary feather file.
-    `text_column`: str
-        Column in data feather file containing text, e.g. `'title'`
-    or `'title'`.
-    `seq_len`: int
-        Maximum number of words included from the text in a sequence.
-    `sample_size`: int or float or None, optional, default=None
-        If not None, include only a specific number of data points (if int) or
-        specific fraction of data (if float), randomly chosen from the data.
-        Applied separately to each training set: train, valid, and test.
-    `check_normalization`: bool, optional, default = True
-        Check whether the text data was normalized according to text_normalizer.
-
-    Notable Methods 
-    ----------
-    `__getitem__`
-        Returns `(text_tensor, source_int)`  where `text_tensor` is the
-        integer-encoded text and `source_int` is False, True if from `'arxiv'`,
-         `'vixra'`, respectively, both pytorch tensors.
-     """
-
-    def __init__(self,
-                 data: Union[str, pd.DataFrame],
-                 tokens: Union[str, pd.DataFrame],
-                 text_column: str,
-                 seq_len: int,
-                 sample_size: Optional[Union[int, float, None]] = None,
-                 check_normalization: Optional[bool] = True) -> None:
-        super().__init__()
-        if isinstance(data, str):
-            self.data = pd.read_feather(data, columns=[text_column, 'source'])
-        else:
-            # Important to copy, otherwise data input is modified.
-            self.data = data.copy()
-        if isinstance(tokens, str):
-            self.tokens_df = pd.read_feather(tokens)
-        else:
-            self.tokens_df = tokens
-        # Create dictionary from tokens. Start from 2, accounting for padding and
-        # unknown maps at 0 and 1.
-        self._word_to_idx = dict(
-            zip(self.tokens_df['word'], np.arange(2, len(self.tokens_df) + 2)))
-
-        self.text_column = text_column
-        self.seq_len = seq_len
-        if sample_size is not None:
-            # .copy() needed in below steps to avoid onnx export errors.
-            if isinstance(sample_size, float):
-                self.data = self.data.sample(frac=sample_size).copy()
-            if isinstance(sample_size, int):
-                self.data = self.data.sample(sample_size).copy()
-        self.check_normalization = check_normalization
-
-        # Perform embedding and encoding the source for arxiv/vixra.
-        self.data['source'] = self.data['source'].apply(
-            self._arxiv_vixra_encoding)
-        self.data[text_column] = self.data[text_column].apply(
-            self._string_to_ints)
-
-    def _arxiv_vixra_encoding(self,
-                              s: str) -> torch.Tensor:
-        if s == 'vixra':
-            return torch.tensor(True)
-        if s == 'arxiv':
-            return torch.tensor(False)
-        raise ValueError(
-            'Source string must either be arxiv or vixra, invalid data.')
-
-    def _string_to_ints(self,
-                        s: str) -> torch.Tensor:
-        return string_to_ints(s,
-                              self._word_to_idx,
-                              self.seq_len,
-                              self.check_normalization)
+    def _str_to_one_hot(self, s: str) -> torch.Tensor:
+        return str_to_one_hot(
+            s, self._char_to_idx, self.seq_len, self.check_normalization
+        )
 
     def __len__(self) -> int:
         return len(self.data)
 
     def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
-        source = self.data.iloc[idx].loc['source']
-        tokenized_text = self.data.iloc[idx].loc[self.text_column]
-
-        return tokenized_text, source
-
-# Datasets below are for testing the ability of models to cheat.
-
-
-class OneHotCharCheatingDataset(Dataset):
-    """Dataset subclass for processing text in feather/csv files at character level
-    and testing the model's ability to cheat via technical clues by inserting
-    a blank space at the end of all vixra samples.
-
-    Description
-    ----------
-
-    Assumes each row in the data feather file has 'source' column which
-    is either 'arxiv' or 'vixra' and that a separate feather file mapping characters
-    to integers (1-indexing assumed) exists. Outputs one-hot-encoded characters.
-
-    Args
-    ----------
-    `data`: str or pd.DataFrame
-        DataFrame object or path to data feather file.
-    `tokens`: str or pd.DataFrame
-        DataFrame object or path to character feather file.
-    `text_column`: str
-        Column in data feather file containing text, e.g. `'title'`
-    or `'title'`.
-    `seq_len`: int
-        How many characters are read in from the text.
-    `sample_size`: int or float or None, optional, default=None
-        If not None, include only a specific number of data points (if int) or
-        specific fraction of data (if float), randomly chosen from the data.
-        Applied separately to each training set: train, valid, and test.
-    `check_normalization`: bool, optional, default = False
-        Check whether the text data was normalized according to text_normalizer.
-
-    Notable Methods 
-    ----------
-    `__getitem__`
-        Returns `(text_tensor, source_int)`  where `text_tensor` is the
-        one-hot encoded text and `source_int` is False, True if from `'arxiv'`,
-         `'vixra'`, respectively, both pytorch tensors.
-     """
-
-    def __init__(self,
-                 data: Union[str, pd.DataFrame],
-                 tokens: Union[str, pd.DataFrame],
-                 text_column: str,
-                 seq_len: int,
-                 sample_size: Optional[Union[int, float, None]] = None,
-                 check_normalization: Optional[bool] = False) -> None:
-        super().__init__()
-        if isinstance(data, str):
-            self.data = pd.read_feather(data, columns=[text_column, 'source'])
-        else:
-            # Important to copy, otherwise data input is modified.
-            self.data = data.copy()
-        if isinstance(tokens, str):
-            self.tokens_df = pd.read_feather(tokens)
-        else:
-            self.tokens_df = tokens
-        self._char_to_idx = dict(
-            zip(self.tokens_df['char'], self.tokens_df['idx']))
-        self.text_column = text_column
-        self.seq_len = seq_len
-        if sample_size is not None:
-            # .copy() needed in below steps to avoid onnx export errors.
-            if isinstance(sample_size, float):
-                self.data = self.data.sample(frac=sample_size).copy()
-            if isinstance(sample_size, int):
-                self.data = self.data.sample(sample_size).copy()
-        self.check_normalization = check_normalization
-
-        # Perform one-hot encoding and encoding the source for arxiv/vixra.
-        self.data['source'] = self.data['source'].apply(
-            self._arxiv_vixra_encoding)
-        self.data[text_column] = self.data[text_column].apply(
-            self._one_hot_encoding)
-
-        # ** INSERTING CHEAT HERE **
-        def insert_trailing_space(t):
-            t = t.clone()
-            t[-1] = torch.zeros_like(t[-1])
-            t[-1, 0] = 1
-            return t
-        # pd fails to a zero-dim broadcast torch.tensor(True) on the RHS
-        vixra_mask = (self.data['source'].values == [
-                      self._arxiv_vixra_encoding('vixra') for _ in self.data['source']])
-        self.data.loc[vixra_mask, text_column] = self.data.loc[vixra_mask,
-                                                               text_column].apply(insert_trailing_space)
-
-    def _arxiv_vixra_encoding(self,
-                              s: str) -> torch.Tensor:
-        if s == 'vixra':
-            return torch.tensor(True)
-        if s == 'arxiv':
-            return torch.tensor(False)
-        raise ValueError(
-            'Source string must either be arxiv or vixra, invalid data.')
-
-    def _one_hot_encoding(self,
-                          s: str) -> torch.Tensor:
-        return one_hot_encoding(s,
-                                self._char_to_idx,
-                                self.seq_len,
-                                self.check_normalization)
-
-    def __len__(self) -> int:
-        return len(self.data)
-
-    def __getitem__(self,
-                    idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
-        source = self.data.iloc[idx].loc['source']
+        source = self.data.iloc[idx].loc["source"]
         one_hot_text = self.data.iloc[idx].loc[self.text_column]
 
         return one_hot_text, source
 
 
-class EmbeddingCheatingDataset(Dataset):
-    """Dataset subclass for processing text in feather/csv files at word level
-    and testing the model's ability to cheat via technical clues by inserting
-    a blank space at the end of all vixra samples.
+class OneHotCharDatasetNextLM(Dataset):
+    """Dataset for handling one-hot-encoded character-level text for
+    language-model generation via next-character prediction.
+
+    Description
+    ----------
+    Uses `tokens` to map characters to integers.
+
+    Args
+    ----------
+    `text`: str
+        Training text.
+    `tokens`: str or pd.DataFrame
+        DataFrame object or path to character feather file.
+    `seq_len`: int
+        Sequence length used for processing text.
+    `check_normalization`: bool, default = True
+        Check whether the text data was normalized according to text_normalizer.
+    `strip_before_normalization_check`: bool, default = True
+        Flag for whether to strip text before performing normalization check.
+
+    Notable Methods
+    ----------
+    `__getitem__`
+        Returns `(text_tensor, next_text_classes)`  where `text_tensor` is the
+        one-hot encoded text and `next_text_classes` is a tensor containing
+        the correct class labels for the similar slice of text shifted one
+        space to the future.
+    """
+
+    def __init__(
+        self,
+        text: str,
+        tokens: Union[str, pd.DataFrame],
+        seq_len: int,
+        check_normalization: bool = True,
+        strip_before_normalization_check: bool = True,
+    ) -> None:
+        super().__init__()
+        self.text = text
+        self.seq_len = seq_len
+        if isinstance(tokens, str):
+            self.tokens_df = pd.read_feather(tokens)
+        else:
+            self.tokens_df = deepcopy(tokens)
+        self._char_to_idx = defaultdict(
+            lambda: BLANK_IDX, zip(self.tokens_df["char"], self.tokens_df["idx"])
+        )
+        self.check_normalization = check_normalization
+        self.strip_before_normalization_check = strip_before_normalization_check
+
+    def _str_to_one_hot(self, s: str) -> torch.Tensor:
+        return str_to_one_hot(
+            s=s,
+            char_to_idx=self._char_to_idx,
+            seq_len=self.seq_len,
+            check_normalization=self.check_normalization,
+            strip_before_normalization_check=self.strip_before_normalization_check,
+        )
+
+    def _get_classes_tensor(self, s: str) -> torch.Tensor:
+        classes = [self._char_to_idx[ch] for ch in s]
+        classes_t = torch.tensor(classes)
+        return classes_t
+
+    def __len__(self) -> int:
+        return len(self.text) // (self.seq_len + 1)
+
+    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
+        start, stop = idx * self.seq_len, (idx + 1) * self.seq_len
+        text = self.text[start:stop]
+        next_text = self.text[start + 1 : stop + 1]
+        text_tensor = self._str_to_one_hot(text)
+        next_text_classes = self._get_classes_tensor(next_text)
+
+        return text_tensor, next_text_classes
+
+
+class EmbeddingDatasetAV(Dataset):
+    """Dataset for handling word-level tokenized text for arxiv/vixra
+    classification.
 
     Description
     ----------
 
     Assumes each row in the data feather file has 'source' column which
     is either 'arxiv' or 'vixra' and that a separate feather file mapping words
-    to integers (1-indexing assumed) exists. Outputs integer-encoded words.
+    to integers exists. Outputs integer-encoded words. tokens DataFrame
+    (or associated feather file) is expected to have a 'count' column tallying
+    the number of times each word appeared in the training set and words to be
+    sorted in descending order by count. Padding and <UNK> are assumed *not* to
+    be in tokens.
 
     Args
     ----------
@@ -334,97 +207,310 @@ class EmbeddingCheatingDataset(Dataset):
         DataFrame object or path to data feather file.
     `tokens`: str or pd.DataFrame
         DataFrame object or path to vocabulary feather file.
+    `min_word_count`: int, default = 1
+        Minimum count for a word in tokens to be included in the vocabulary.
     `text_column`: str
-        Column in data feather file containing text, e.g. `'title'`
-    or `'title'`.
+        Column in data feather file containing text, e.g. `'title'`.
     `seq_len`: int
-        Maximum number of words included from the text in a sequence.
-    `sample_size`: int or float or None, optional, default=None
+        Sequence length used for processing text.
+    `sample_size`: int or float or None, default=None
         If not None, include only a specific number of data points (if int) or
         specific fraction of data (if float), randomly chosen from the data.
         Applied separately to each training set: train, valid, and test.
-    `check_normalization`: bool, optional, default = False
+    `check_normalization`: bool, default = True
         Check whether the text data was normalized according to text_normalizer.
 
-    Notable Methods 
+    Notable Methods
     ----------
     `__getitem__`
         Returns `(text_tensor, source_int)`  where `text_tensor` is the
         integer-encoded text and `source_int` is False, True if from `'arxiv'`,
          `'vixra'`, respectively, both pytorch tensors.
-     """
+    """
 
-    def __init__(self,
-                 data: Union[str, pd.DataFrame],
-                 tokens: Union[str, pd.DataFrame],
-                 text_column: str,
-                 seq_len: int,
-                 sample_size: Optional[Union[int, float, None]] = None,
-                 check_normalization: Optional[bool] = False) -> None:
+    def __init__(
+        self,
+        data: Union[str, pd.DataFrame],
+        tokens: Union[str, pd.DataFrame],
+        text_column: str,
+        seq_len: int,
+        min_word_count: int = 1,
+        sample_size: Optional[Union[int, float]] = None,
+        check_normalization: bool = True,
+    ) -> None:
         super().__init__()
+        self.text_column = text_column
+        self.seq_len = seq_len
+        self.min_word_count = min_word_count
+        self.sample_size = sample_size
+        self.check_normalization = check_normalization
+
         if isinstance(data, str):
-            self.data = pd.read_feather(data, columns=[text_column, 'source'])
+            self.data = pd.read_feather(data, columns=[text_column, "source"])
         else:
             # Important to copy, otherwise data input is modified.
-            self.data = data.copy()
+            self.data = deepcopy(data)
         if isinstance(tokens, str):
             self.tokens_df = pd.read_feather(tokens)
         else:
-            self.tokens_df = tokens
+            self.tokens_df = deepcopy(tokens)
+        if min_word_count > 1:
+            if "count" in self.tokens_df:
+                self.tokens_df = self.tokens_df[
+                    self.tokens_df["count"] >= min_word_count
+                ]
+            else:
+                warnings.warn(
+                    "count column does not exist in tokens DataFrame, min_word_count arg ignored."
+                )
+
         # Create dictionary from tokens. Start from 2, accounting for padding and
         # unknown maps at 0 and 1.
         self._word_to_idx = dict(
-            zip(self.tokens_df['word'], np.arange(2, len(self.tokens_df) + 2)))
+            zip(self.tokens_df["word"], np.arange(2, len(self.tokens_df) + 2))
+        )
+        self._word_to_idx["<PAD>"] = PAD_IDX
+        self._word_to_idx["<UNK>"] = UNK_IDX
 
-        self.text_column = text_column
-        self.seq_len = seq_len
         if sample_size is not None:
-            # .copy() needed in below steps to avoid onnx export errors.
             if isinstance(sample_size, float):
-                self.data = self.data.sample(frac=sample_size).copy()
+                self.data = self.data.sample(frac=sample_size)
             if isinstance(sample_size, int):
-                self.data = self.data.sample(sample_size).copy()
-        self.check_normalization = check_normalization
+                self.data = self.data.sample(sample_size)
 
         # Perform embedding and encoding the source for arxiv/vixra.
-        self.data['source'] = self.data['source'].apply(
-            self._arxiv_vixra_encoding)
-        self.data[text_column] = self.data[text_column].apply(
-            self._string_to_ints)
+        self.data["source"] = self.data["source"].apply(self._arxiv_vixra_encoding)
+        self.data[text_column] = self.data[text_column].apply(self._str_to_idxs)
 
-        # ** INSERTING CHEAT HERE **
-        def insert_trailing_space(t):
-            t = t.clone()
-            t[-1] = 0
-            return t
-        # pd fails to a zero-dim broadcast torch.tensor(True) on the RHS
-        vixra_mask = (self.data['source'].values == [
-                      self._arxiv_vixra_encoding('vixra') for _ in self.data['source']])
-        self.data.loc[vixra_mask, text_column] = self.data.loc[vixra_mask,
-                                                               text_column].apply(insert_trailing_space)
-
-    def _arxiv_vixra_encoding(self,
-                              s: str) -> torch.Tensor:
-        if s == 'vixra':
+    def _arxiv_vixra_encoding(self, s: str) -> torch.Tensor:
+        if s == "vixra":
             return torch.tensor(True)
-        if s == 'arxiv':
+        if s == "arxiv":
             return torch.tensor(False)
-        raise ValueError(
-            'Source string must either be arxiv or vixra, invalid data.')
+        raise ValueError("Source string must either be arxiv or vixra, invalid data.")
 
-    def _string_to_ints(self,
-                        s: str) -> torch.Tensor:
-        return string_to_ints(s,
-                              self._word_to_idx,
-                              self.seq_len,
-                              self.check_normalization)
+    def _str_to_idxs(self, s: str) -> torch.Tensor:
+        return str_to_idxs(s, self._word_to_idx, self.seq_len, self.check_normalization)
 
     def __len__(self) -> int:
         return len(self.data)
 
-    def __getitem__(self,
-                    idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
-        source = self.data.iloc[idx].loc['source']
+    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
+        source = self.data.iloc[idx].loc["source"]
         tokenized_text = self.data.iloc[idx].loc[self.text_column]
 
         return tokenized_text, source
+
+
+class EmbeddingDatasetNextLM(Dataset):
+    """Dataset for handling word-level tokenized text for
+    language-model generation via next-word prediction.
+
+    Description
+    ----------
+
+    Assumes each row in the data feather file has 'source' column which
+    is either 'arxiv' or 'vixra' and that a separate feather file mapping words
+    to integers exists. Outputs integer-encoded words. tokens DataFrame
+    (or associated feather file) is expected to have a 'count' column tallying
+    the number of times each word appeared in the training set and words to be
+    sorted in descending order by count. Padding and <UNK> are assumed *not* to
+    be in tokens.
+
+    Args
+    ----------
+    `text`: str
+        Training text.
+    `tokens`: str or pd.DataFrame
+        DataFrame object or path to vocabulary feather file.
+    `min_word_count`: int, default = 1
+        Minimum count for a word in tokens to be included in the vocabulary.
+    `seq_len`: int
+        Sequence length used for processing text.
+    `check_normalization`: bool, default = True
+        Check whether the text data was normalized according to text_normalizer.
+    `strip_before_normalization_check`: bool, default = True
+        Flag for whether to strip text before performing normalization check.
+
+    Notable Methods
+    ----------
+    `__getitem__`
+        Returns `(text_tensor, next_text_classes)`  where `text_tensor` is the
+        tokenized text tensor and `next_text_classes` is a tensor containing
+        the correct class labels for the similar slice of text shifted one
+        space to the future.
+    """
+
+    def __init__(
+        self,
+        text: str,
+        tokens: Union[str, pd.DataFrame],
+        seq_len: int,
+        min_word_count: int = 1,
+        check_normalization: bool = True,
+        strip_before_normalization_check: bool = True,
+    ) -> None:
+        super().__init__()
+        self.text = text
+        self.split_text = text.split()
+        self.seq_len = seq_len
+        self.min_word_count = min_word_count
+        self.check_normalization = check_normalization
+        self.strip_before_normalization_check = strip_before_normalization_check
+
+        if isinstance(tokens, str):
+            self.tokens_df = pd.read_feather(tokens)
+        else:
+            self.tokens_df = deepcopy(tokens)
+        if min_word_count > 1:
+            if "count" in self.tokens_df:
+                self.tokens_df = self.tokens_df[
+                    self.tokens_df["count"] >= min_word_count
+                ]
+            else:
+                warnings.warn(
+                    "count column does not exist in tokens DataFrame, min_word_count arg ignored."
+                )
+
+        # Create dictionary from tokens. Start from 2, accounting for
+        # padding and unknown maps at 0 and 1.
+        self._word_to_idx = defaultdict(
+            lambda: UNK_IDX,
+            zip(self.tokens_df["word"], np.arange(2, len(self.tokens_df) + 2)),
+        )
+        self._word_to_idx["<PAD>"] = PAD_IDX
+        self._word_to_idx["<UNK>"] = UNK_IDX
+
+    def _str_to_idxs(self, s: str) -> torch.Tensor:
+        return str_to_idxs(
+            s=s,
+            word_to_idx=self._word_to_idx,
+            seq_len=self.seq_len,
+            check_normalization=self.check_normalization,
+            strip_before_normalization_check=self.strip_before_normalization_check,
+        )
+
+    def _get_classes_tensor(self, s: str) -> torch.Tensor:
+        classes = [self._word_to_idx[w] for w in s.split()]
+        classes_t = torch.tensor(classes)
+        return classes_t
+
+    def __len__(self) -> int:
+        return len(self.split_text) // (self.seq_len + 1)
+
+    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
+        start, stop = idx * self.seq_len, (idx + 1) * self.seq_len
+        text = " ".join(self.split_text[start:stop])
+        next_text = " ".join(self.split_text[start + 1 : stop + 1])
+        text_tensor = self._str_to_idxs(text)
+        next_text_classes = self._get_classes_tensor(next_text)
+
+        return text_tensor, next_text_classes
+
+
+class GloVeDataset(Dataset):
+    """Dataset subclass for the GloVe algorithm.
+
+    Description
+    ----------
+
+    Returns tensors of row and column indices and the corresponding elements
+    from the co-occurrence matrix.
+
+    Args
+    ----------
+    `co_matrix`: torch.Tensor
+        Co-occurrence matrix, a sparse torch tensor.
+
+    Notable Methods
+    ----------
+    `__getitem__`
+        Returns a tuple of tensors: row, col, co_matrix_element, where
+        co_matrix_element = co_matrix[row, col].
+    """
+
+    def __init__(self, co_matrix: torch.Tensor) -> None:
+        super().__init__()
+        # __getitem__ is an order-of-magnitude faster from a dense tensor than
+        # a sparse one.
+        self._co_matrix = co_matrix.to_dense()
+        self._indices = co_matrix.coalesce().indices()
+
+    def __len__(self) -> int:
+        """Return the number of non-trivial entries in the sparse co_matrix."""
+        return self._indices.shape[-1]
+
+    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        """Returns a pair of indices and the corresponding co_matrix entry."""
+        row, col = self._indices[:, idx]
+        co_matrix_element = self._co_matrix[row, col]
+        return row, col, co_matrix_element
+
+
+class CoMatrixDataset(Dataset):
+    """Dataset for efficiently generating co-occurrence matrices.
+
+    Description
+    ----------
+
+    Encoding performed using a word_to_idx dict mapping words to indices.
+    <PAD> and <UNK> are expected to map to 0 and 1, respectively.
+    Text is expected to have been passed through text_normalizer first.
+    Text normalization and proper mapping via word_to_idx can be verified
+    through the check_normalization flag.
+
+    Args
+    ----------
+    `text`: str
+        Text to to be embedded
+    `word_to_idx`: dict
+        Mapping from words to indices.
+    `context_window`: int, default = 2
+        Width of the context window used on either side of the center word.
+    `include_center_in_context`: bool, default = False
+        Experimental flag for including the center word in its own context.
+
+    Notable Methods
+    ----------
+    `__getitem__`
+        Returns a tuple of tensors: row, col, co_matrix_element, where
+        co_matrix_element = co_matrix[row, col].
+    """
+
+    def __init__(
+        self,
+        text: str,
+        word_to_idx: Dict[str, int],
+        context_window: int = 2,
+        include_center_in_context: bool = False,
+    ) -> None:
+        super().__init__()
+        print("Encoding text...")
+        # Slicing a list of words then generating the appropriate torch.Tensors
+        # is about twice as fast as generating a large torch.Tensor first and
+        # slicing and concatenating it down.
+        self._encoded_text = [
+            word_to_idx.get(word, UNK_IDX) for word in text.strip().split()
+        ]
+        print("...done!")
+        self.context_window = context_window
+        self.include_center_in_context = include_center_in_context
+
+    def __len__(self) -> int:
+        """Return the number of non-trivial entries in the sparse co_matrix."""
+        return len(self._encoded_text) - 2 * self.context_window
+
+    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
+        """Returns the word idx of the center word and a left-to-right
+        ordered tensor of its surrounding context words.
+        """
+        pos = idx + self.context_window
+        center_idx = torch.tensor(self._encoded_text[pos])
+        left, right = pos - self.context_window, pos + self.context_window + 1
+        if self.include_center_in_context:
+            context = torch.tensor(self._encoded_text[left:right])
+        else:
+            left_context = self._encoded_text[left:pos]
+            right_context = self._encoded_text[pos + 1 : right]
+            context = torch.tensor(left_context + right_context)
+        return center_idx, context

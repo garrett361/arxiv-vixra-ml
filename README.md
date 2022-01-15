@@ -21,4 +21,3 @@ The present repo consists of the following directories:
 * `final_models`: `.pt` `state_dict`s, `.onnx` files, etc. for the best-performing models of various classes.
 * `simple_baselines`: Simple baseline models against which to compare.
 * `simple_recurrent`: Basic `RNN`/`LSTM`/`GRU` models, either at character level or using word-embeddings.
-
