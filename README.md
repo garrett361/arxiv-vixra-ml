@@ -16,8 +16,8 @@ The notebooks are from [Google Colab](https://colab.research.google.com) pro GPU
 
 The present repo consists of the following directories:
 * `arxiv_vixra_models`: `python` package in which all `torch`/`pl` architectures, classes, helper functions, etc. are defined.
-* `data_exploration`: Colab notebooks for exploring properties of the dataset, as well as filtering, normalizing, and tokenizing the text.
+* `data_processing`: Colab notebooks for exploring properties of the dataset, as well as filtering, normalizing, and tokenizing the text.
 * `figures`: Various figures generated from notebooks.
-* `final_models`: `.pt` `state_dict`s, `.onnx` files, etc. for the best-performing models of various classes.
-* `simple_baselines`: Simple baseline models against which to compare.
+* `glove`: Colab notebooks for running the GloVe algorithm for word embeddings.
+* `baseline_models`: Colab notebooks for simple baseline models (logistic regression and random forest) against which to compare.
 * `simple_recurrent`: Basic `RNN`/`LSTM`/`GRU` models, either at character level or using word-embeddings.
