@@ -6,6 +6,7 @@ import warnings
 import numpy as np
 import pandas as pd
 import torch
+from torch import Tensor
 from torch.utils.data import Dataset
 
 from .embedding_utils import str_to_idxs
@@ -86,14 +87,14 @@ class OneHotCharDatasetAV(Dataset):
         self.data["source"] = self.data["source"].apply(self._arxiv_vixra_encoding)
         self.data[text_column] = self.data[text_column].apply(self._str_to_one_hot)
 
-    def _arxiv_vixra_encoding(self, s: str) -> torch.Tensor:
+    def _arxiv_vixra_encoding(self, s: str) -> Tensor:
         if s == "vixra":
             return torch.tensor(True)
         if s == "arxiv":
             return torch.tensor(False)
         raise ValueError("Source string must either be arxiv or vixra, invalid data.")
 
-    def _str_to_one_hot(self, s: str) -> torch.Tensor:
+    def _str_to_one_hot(self, s: str) -> Tensor:
         return str_to_one_hot(
             s, self._char_to_idx, self.seq_len, self.check_normalization
         )
@@ -101,7 +102,7 @@ class OneHotCharDatasetAV(Dataset):
     def __len__(self) -> int:
         return len(self.data)
 
-    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
+    def __getitem__(self, idx: int) -> Tuple[Tensor, Tensor]:
         source = self.data.iloc[idx].loc["source"]
         one_hot_text = self.data.iloc[idx].loc[self.text_column]
 
@@ -159,7 +160,7 @@ class OneHotCharDatasetNextLM(Dataset):
         self.check_normalization = check_normalization
         self.strip_before_normalization_check = strip_before_normalization_check
 
-    def _str_to_one_hot(self, s: str) -> torch.Tensor:
+    def _str_to_one_hot(self, s: str) -> Tensor:
         return str_to_one_hot(
             s=s,
             char_to_idx=self._char_to_idx,
@@ -168,7 +169,7 @@ class OneHotCharDatasetNextLM(Dataset):
             strip_before_normalization_check=self.strip_before_normalization_check,
         )
 
-    def _get_classes_tensor(self, s: str) -> torch.Tensor:
+    def _get_classes_tensor(self, s: str) -> Tensor:
         classes = [self._char_to_idx[ch] for ch in s]
         classes_t = torch.tensor(classes)
         return classes_t
@@ -176,7 +177,7 @@ class OneHotCharDatasetNextLM(Dataset):
     def __len__(self) -> int:
         return len(self.text) // (self.seq_len + 1)
 
-    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
+    def __getitem__(self, idx: int) -> Tuple[Tensor, Tensor]:
         start, stop = idx * self.seq_len, (idx + 1) * self.seq_len
         text = self.text[start:stop]
         next_text = self.text[start + 1 : stop + 1]
@@ -282,20 +283,20 @@ class EmbeddingDatasetAV(Dataset):
         self.data["source"] = self.data["source"].apply(self._arxiv_vixra_encoding)
         self.data[text_column] = self.data[text_column].apply(self._str_to_idxs)
 
-    def _arxiv_vixra_encoding(self, s: str) -> torch.Tensor:
+    def _arxiv_vixra_encoding(self, s: str) -> Tensor:
         if s == "vixra":
             return torch.tensor(True)
         if s == "arxiv":
             return torch.tensor(False)
         raise ValueError("Source string must either be arxiv or vixra, invalid data.")
 
-    def _str_to_idxs(self, s: str) -> torch.Tensor:
+    def _str_to_idxs(self, s: str) -> Tensor:
         return str_to_idxs(s, self._word_to_idx, self.seq_len, self.check_normalization)
 
     def __len__(self) -> int:
         return len(self.data)
 
-    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
+    def __getitem__(self, idx: int) -> Tuple[Tensor, Tensor]:
         source = self.data.iloc[idx].loc["source"]
         tokenized_text = self.data.iloc[idx].loc[self.text_column]
 
@@ -381,7 +382,7 @@ class EmbeddingDatasetNextLM(Dataset):
         self._word_to_idx["<PAD>"] = PAD_IDX
         self._word_to_idx["<UNK>"] = UNK_IDX
 
-    def _str_to_idxs(self, s: str) -> torch.Tensor:
+    def _str_to_idxs(self, s: str) -> Tensor:
         return str_to_idxs(
             s=s,
             word_to_idx=self._word_to_idx,
@@ -390,7 +391,7 @@ class EmbeddingDatasetNextLM(Dataset):
             strip_before_normalization_check=self.strip_before_normalization_check,
         )
 
-    def _get_classes_tensor(self, s: str) -> torch.Tensor:
+    def _get_classes_tensor(self, s: str) -> Tensor:
         classes = [self._word_to_idx[w] for w in s.split()]
         classes_t = torch.tensor(classes)
         return classes_t
@@ -398,7 +399,7 @@ class EmbeddingDatasetNextLM(Dataset):
     def __len__(self) -> int:
         return len(self.split_text) // (self.seq_len + 1)
 
-    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
+    def __getitem__(self, idx: int) -> Tuple[Tensor, Tensor]:
         start, stop = idx * self.seq_len, (idx + 1) * self.seq_len
         text = " ".join(self.split_text[start:stop])
         next_text = " ".join(self.split_text[start + 1 : stop + 1])
@@ -419,7 +420,7 @@ class GloVeDataset(Dataset):
 
     Args
     ----------
-    `co_matrix`: torch.Tensor
+    `co_matrix`: Tensor
         Co-occurrence matrix, a sparse torch tensor.
 
     Notable Methods
@@ -429,7 +430,7 @@ class GloVeDataset(Dataset):
         co_matrix_element = co_matrix[row, col].
     """
 
-    def __init__(self, co_matrix: torch.Tensor) -> None:
+    def __init__(self, co_matrix: Tensor) -> None:
         super().__init__()
         # __getitem__ is an order-of-magnitude faster from a dense tensor than
         # a sparse one.
@@ -440,7 +441,7 @@ class GloVeDataset(Dataset):
         """Return the number of non-trivial entries in the sparse co_matrix."""
         return self._indices.shape[-1]
 
-    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    def __getitem__(self, idx: int) -> Tuple[Tensor, Tensor, Tensor]:
         """Returns a pair of indices and the corresponding co_matrix entry."""
         row, col = self._indices[:, idx]
         co_matrix_element = self._co_matrix[row, col]
@@ -486,8 +487,8 @@ class CoMatrixDataset(Dataset):
     ) -> None:
         super().__init__()
         print("Encoding text...")
-        # Slicing a list of words then generating the appropriate torch.Tensors
-        # is about twice as fast as generating a large torch.Tensor first and
+        # Slicing a list of words then generating the appropriate Tensors
+        # is about twice as fast as generating a large Tensor first and
         # slicing and concatenating it down.
         self._encoded_text = [
             word_to_idx.get(word, UNK_IDX) for word in text.strip().split()
@@ -500,7 +501,7 @@ class CoMatrixDataset(Dataset):
         """Return the number of non-trivial entries in the sparse co_matrix."""
         return len(self._encoded_text) - 2 * self.context_window
 
-    def __getitem__(self, idx: int) -> Tuple[torch.Tensor, torch.Tensor]:
+    def __getitem__(self, idx: int) -> Tuple[Tensor, Tensor]:
         """Returns the word idx of the center word and a left-to-right
         ordered tensor of its surrounding context words.
         """

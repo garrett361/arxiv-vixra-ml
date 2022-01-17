@@ -1,10 +1,10 @@
-import unicodedata
+from unicodedata import category
 
 from unidecode import unidecode
 
 # Filter ascii chars by type.
 ascii_all_lower = set(chr(i).lower() for i in range(128))
-ascii_control = set(ch for ch in ascii_all_lower if unicodedata.category(ch)[0] == "C")
+ascii_control = set(ch for ch in ascii_all_lower if category(ch)[0] == "C")
 ascii_all_lower_alpha_num = {ch for ch in ascii_all_lower if ch.isalnum()}
 ascii_punctuation = ascii_all_lower - ascii_control - ascii_all_lower_alpha_num
 

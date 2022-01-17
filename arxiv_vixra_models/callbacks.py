@@ -6,7 +6,7 @@ from sklearn.metrics import (
     RocCurveDisplay,
     PrecisionRecallDisplay,
 )
-import torch
+from torch import Tensor
 from torch.nn import Module
 from typing import Tuple, Sequence, Optional, Callable, Dict
 import wandb
@@ -30,7 +30,7 @@ class WandbAVPredictionCallback(pl.Callback):
 
     Args
     ----------
-    `val_sample`: Tuple[torch.Tensor, torch.Tensor]
+    `val_sample`: Tuple[Tensor, Tensor]
         Tuple of (inputs, targets) taken from the validation set.
     `decoder_fn`: Callable
         Function to be called on architecture inputs as in
@@ -47,7 +47,7 @@ class WandbAVPredictionCallback(pl.Callback):
 
     def __init__(
         self,
-        val_sample: Tuple[torch.Tensor, torch.Tensor],
+        val_sample: Tuple[Tensor, Tensor],
         decoder_fn: Callable,
         decoder_dict: Dict[int, str],
         labels: Optional[Sequence[str]] = ("arxiv", "vixra"),

@@ -1,0 +1,4 @@
+[flake8]
+# Ignore "whitespace before :" (E203), since this is not actually pep8 compliant in slices.
+# Ignore "line too long" (E501) in favor of black defaults.
+ignore = E203, E501

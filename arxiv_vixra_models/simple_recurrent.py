@@ -7,7 +7,7 @@ import warnings
 import pandas as pd
 import pytorch_lightning as pl
 import torch
-from torch import nn
+from torch import nn, Tensor
 import torch.nn.functional as F
 import torchmetrics
 import wandb
@@ -130,8 +130,8 @@ class LitRNNLoggingBaseAV(pl.LightningModule):
         return optim_dict
 
     def forward(
-        self, input: torch.Tensor, hiddens: Optional[torch.Tensor] = None
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        self, input: Tensor, hiddens: Optional[Tensor] = None
+    ) -> Tuple[Tensor, Tensor]:
         """Returns outputs as a flattened vector, along with the hidden state."""
         if hasattr(self, "embedding"):
             input = self.embedding(input)
@@ -154,10 +154,10 @@ class LitRNNLoggingBaseAV(pl.LightningModule):
 
     def scores_loss_hiddens(
         self,
-        inputs: torch.Tensor,
-        targets: torch.Tensor,
-        hiddens: Optional[torch.Tensor] = None,
-    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        inputs: Tensor,
+        targets: Tensor,
+        hiddens: Optional[Tensor] = None,
+    ) -> Tuple[Tensor, Tensor, Tensor]:
         """Returns the scores, losses, and hiddens, with L2 regularization applied to the weights
         of all fully connected layers, if l2_reg.
         """
@@ -171,8 +171,8 @@ class LitRNNLoggingBaseAV(pl.LightningModule):
         return scores, loss, hiddens
 
     def get_probs_hiddens(
-        self, input: torch.Tensor, hiddens: Optional[torch.Tensor] = None
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        self, input: Tensor, hiddens: Optional[Tensor] = None
+    ) -> Tuple[Tensor, Tensor]:
         """Returns probs, hiddens, with probs shaped as (batch_size, )."""
         is_training = self.training
         self.eval()
@@ -185,10 +185,10 @@ class LitRNNLoggingBaseAV(pl.LightningModule):
 
     def training_step(
         self,
-        batch: Tuple[torch.Tensor, torch.Tensor],
+        batch: Tuple[Tensor, Tensor],
         batch_idx: int,
-        hiddens: Optional[torch.Tensor] = None,
-    ) -> Dict[str, torch.Tensor]:
+        hiddens: Optional[Tensor] = None,
+    ) -> Dict[str, Tensor]:
         inputs, targets = batch
         scores, loss, hiddens = self.scores_loss_hiddens(
             inputs, targets, hiddens=hiddens
@@ -204,9 +204,7 @@ class LitRNNLoggingBaseAV(pl.LightningModule):
             out["hiddens"] = hiddens
         return out
 
-    def training_epoch_end(
-        self, training_step_outputs: Dict[str, torch.Tensor]
-    ) -> None:
+    def training_epoch_end(self, training_step_outputs: Dict[str, Tensor]) -> None:
         """If tbptt_split_batch is used, training_step_outputs will contain
         lists of lists of dicts, rather than single lists of dicts, so a
         flattening helper function must be used before computing the mean loss.
@@ -219,17 +217,15 @@ class LitRNNLoggingBaseAV(pl.LightningModule):
             self.log(name, metric, prog_bar=True)
 
     def validation_step(
-        self, batch: Tuple[torch.Tensor, torch.Tensor], batch_idx: int
-    ) -> Dict[str, torch.Tensor]:
+        self, batch: Tuple[Tensor, Tensor], batch_idx: int
+    ) -> Dict[str, Tensor]:
         inputs, targets = batch
         scores, loss, _ = self.scores_loss_hiddens(inputs, targets)
         for metric in self.val_metrics_dict.values():
             metric(scores.detach(), targets)
         return {"val_loss": loss}
 
-    def validation_epoch_end(
-        self, validation_step_outputs: Dict[str, torch.Tensor]
-    ) -> None:
+    def validation_epoch_end(self, validation_step_outputs: Dict[str, Tensor]) -> None:
         """If tbptt_split_batch is used, training_step_outputs will contain
         lists of lists of dicts, rather than single lists of dicts, so a
         flattening helper function must be used before computing the mean loss.
@@ -293,8 +289,8 @@ class LitRNNLoggingBaseAV(pl.LightningModule):
         raise NotImplementedError("Should not be using test dataset yet.")
 
     def tbptt_split_batch(
-        self, batch: Tuple[torch.Tensor, torch.Tensor], split_size: Union[int, float]
-    ) -> Sequence[Tuple[torch.Tensor, torch.Tensor]]:
+        self, batch: Tuple[Tensor, Tensor], split_size: Union[int, float]
+    ) -> Sequence[Tuple[Tensor, Tensor]]:
         """Passing a float to split_size chooses the split via a fraction of
         the sequence length. If used, by setting truncated_bptt_steps to not
         None, the shape of the x_step_outputs that x_step passes to
@@ -444,11 +440,10 @@ class LitOneHotCharRNNAV(LitRNNLoggingBaseAV):
 
         # The fully connected layer size depends on the bidirectional flag
         # and whether or not the 'concat' hidden_strategy is used.
-        self._fc_input_size = (
-            (2 if bidirectional else 1)
-            * (3 if hidden_strategy == "concat" else 1)
-            * hidden_size
-        )
+        bi_factor = 2 if bidirectional else 1
+        hidden_strategy_factor = 3 if hidden_strategy == "concat" else 1
+        self._fc_input_size = bi_factor * hidden_strategy_factor * hidden_size
+
         # Need to set truncated_bptt_steps as an attr to implement tbptt.
         if truncated_bptt_steps is not None:
             self.truncated_bptt_steps = truncated_bptt_steps
@@ -566,7 +561,7 @@ class LitEmbeddingRNNAV(LitRNNLoggingBaseAV):
     `logging_kwargs`: None or dict, optional
         Optional kwargs which don't affect performance, but which will be
         tracked by loggers such as wandb. Useful for tracking batch size, e.g.
-    `embedding_from_pretrained`: None or torch.Tensor, optional
+    `embedding_from_pretrained`: None or Tensor, optional
         Optionally load a pre-trained tensor into the embedding layer.
     `freeze_pretrained`: bool, default = True
         Flag for freezing pretrained embedding layer.
@@ -611,7 +606,7 @@ class LitEmbeddingRNNAV(LitRNNLoggingBaseAV):
         recurrent_dropout: Optional[float] = None,
         truncated_bptt_steps: Optional[int] = None,
         save_models_to_wandb: bool = False,
-        embedding_from_pretrained: Optional[torch.Tensor] = None,
+        embedding_from_pretrained: Optional[Tensor] = None,
         freeze_pretrained: Optional[bool] = True,
         **logging_kwargs: Dict[str, Union[float, int, str]],
     ) -> None:
@@ -652,11 +647,10 @@ class LitEmbeddingRNNAV(LitRNNLoggingBaseAV):
 
         # The fully connected layer size depends on the bidirectional flag
         # and whether or not the 'concat' hidden_strategy is used.
-        self._fc_input_size = (
-            (2 if bidirectional else 1)
-            * (3 if hidden_strategy == "concat" else 1)
-            * hidden_size
-        )
+        bi_factor = 2 if bidirectional else 1
+        hidden_strategy_factor = 3 if hidden_strategy == "concat" else 1
+        self._fc_input_size = bi_factor * hidden_strategy_factor * hidden_size
+
         # Need to set truncated_bptt_steps as an attr to implement tbptt.
         if truncated_bptt_steps is not None:
             self.truncated_bptt_steps = truncated_bptt_steps
@@ -723,13 +717,13 @@ class LitEmbeddingRNNAV(LitRNNLoggingBaseAV):
             self.fc_layers[1::2] = [nn.ReLU() for _ in range(num_relus)]
             self.fc_layers = nn.ModuleList(self.fc_layers)
 
-    def get_embedding_weights(self) -> torch.Tensor:
+    def get_embedding_weights(self) -> Tensor:
         """Returns the mean of the word and context embedding weights."""
         with torch.no_grad():
             embedding_weights = self.embedding.weight.data
             return embedding_weights.clone().detach()
 
-    def get_embedding_vector(self, idx: int) -> torch.Tensor:
+    def get_embedding_vector(self, idx: int) -> Tensor:
         """
         Returns the mean of the word and context vectors corresponding to a
         given index.
@@ -739,7 +733,7 @@ class LitEmbeddingRNNAV(LitRNNLoggingBaseAV):
             word_vector = self.embedding(idx_t)
             return word_vector.clone().detach()
 
-    def get_unit_embedding_vector(self, idx: int) -> torch.Tensor:
+    def get_unit_embedding_vector(self, idx: int) -> Tensor:
         """
         Returns the mean of the word and context vectors with corresponding to
         a given index whose length has been normalized to 1.
@@ -749,7 +743,7 @@ class LitEmbeddingRNNAV(LitRNNLoggingBaseAV):
         unit_vector = vector / vector_norm
         return unit_vector.clone().detach()
 
-    def get_embedding_cosine(self, idx1: int, idx2: int) -> torch.Tensor:
+    def get_embedding_cosine(self, idx1: int, idx2: int) -> Tensor:
         """Returns the cosine between the mean vectors corresponding to the
         provided indices.
         """
@@ -759,7 +753,7 @@ class LitEmbeddingRNNAV(LitRNNLoggingBaseAV):
             cos = unit_vector_1 @ unit_vector_2
             return cos.clone().detach()
 
-    def get_embedding_dot(self, idx1: int, idx2: int) -> torch.Tensor:
+    def get_embedding_dot(self, idx1: int, idx2: int) -> Tensor:
         """Returns the dot product between the mean vectors corresponding
         to the provided indices.
         """

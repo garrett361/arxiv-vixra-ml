@@ -4,7 +4,7 @@ from typing import Dict, Tuple, Sequence, Union
 import pandas as pd
 import pytorch_lightning as pl
 import torch
-from torch import nn
+from torch import nn, Tensor
 import torch.nn.functional as F
 import torchmetrics
 import wandb
@@ -63,15 +63,13 @@ class LitMinimalLoggingBase(pl.LightningModule):
             {"test_" + key: val() for key, val in metrics_dict.items()}
         )
 
-    def forward(self, input: torch.Tensor) -> torch.Tensor:
+    def forward(self, input: Tensor) -> Tensor:
         """
         Overwrite. Expected to return outputs tensor.
         """
         raise NotImplementedError("Must overwrite the forward method.")
 
-    def scores_loss(
-        self, inputs: torch.Tensor, targets: torch.Tensor
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    def scores_loss(self, inputs: Tensor, targets: Tensor) -> Tuple[Tensor, Tensor]:
         """
         Overwrite. Expected to return (scores, losses) tuple.
         """
@@ -82,8 +80,8 @@ class LitMinimalLoggingBase(pl.LightningModule):
         raise NotImplementedError("Must overwrite the configure_optimizers method.")
 
     def training_step(
-        self, batch: Tuple[torch.Tensor, torch.Tensor], batch_idx: int
-    ) -> Dict[str, torch.Tensor]:
+        self, batch: Tuple[Tensor, Tensor], batch_idx: int
+    ) -> Dict[str, Tensor]:
         inputs, targets = batch
         scores, loss = self.scores_loss(inputs, targets)
         for metric in self.train_metrics_dict.values():
@@ -92,7 +90,7 @@ class LitMinimalLoggingBase(pl.LightningModule):
         return {"loss": loss}
 
     def training_epoch_end(
-        self, training_step_outputs: Sequence[Dict[str, torch.Tensor]]
+        self, training_step_outputs: Sequence[Dict[str, Tensor]]
     ) -> None:
         mean_loss = torch.tensor(
             [batch["loss"] for batch in training_step_outputs]
@@ -102,8 +100,8 @@ class LitMinimalLoggingBase(pl.LightningModule):
             self.log(name, metric, prog_bar=True)
 
     def validation_step(
-        self, batch: Tuple[torch.Tensor, torch.Tensor], batch_idx: int
-    ) -> Dict[str, torch.Tensor]:
+        self, batch: Tuple[Tensor, Tensor], batch_idx: int
+    ) -> Dict[str, Tensor]:
         inputs, targets = batch
         scores, loss = self.scores_loss(inputs, targets)
         for metric in self.val_metrics_dict.values():
@@ -111,7 +109,7 @@ class LitMinimalLoggingBase(pl.LightningModule):
         return {"val_loss": loss}
 
     def validation_epoch_end(
-        self, validation_step_outputs: Sequence[Dict[str, torch.Tensor]]
+        self, validation_step_outputs: Sequence[Dict[str, Tensor]]
     ) -> None:
         self._curr_val_loss = torch.tensor(
             [batch["val_loss"] for batch in validation_step_outputs]
@@ -232,7 +230,7 @@ class LitOneHotFC(LitMinimalLoggingBase):
         else:
             self.layers = nn.ModuleList(self.fc_layers)
 
-    def forward(self, input: torch.Tensor) -> torch.Tensor:
+    def forward(self, input: Tensor) -> Tensor:
         # Flatten and pass through layers.
         seq_len, input_size = self.hparams["seq_len"], self.hparams["input_size"]
         output = input.view(-1, seq_len * input_size)
@@ -241,9 +239,7 @@ class LitOneHotFC(LitMinimalLoggingBase):
             output = layer(output)
         return output.view(-1)
 
-    def scores_loss(
-        self, inputs: torch.Tensor, targets: torch.Tensor
-    ) -> Tuple[torch.Tensor]:
+    def scores_loss(self, inputs: Tensor, targets: Tensor) -> Tuple[Tensor]:
         scores = self(inputs)
         loss = F.binary_cross_entropy_with_logits(scores, targets.float())
         return scores, loss
@@ -277,7 +273,7 @@ class LitOneHotFC(LitMinimalLoggingBase):
             sep="\n",
         )
 
-    def get_probs(self, input: torch.Tensor) -> torch.Tensor:
+    def get_probs(self, input: Tensor) -> Tensor:
         """Returns the probability predictions."""
         is_training = self.training
         self.eval()

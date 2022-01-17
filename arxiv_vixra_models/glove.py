@@ -6,7 +6,7 @@ import warnings
 
 import pytorch_lightning as pl
 import torch
-from torch import nn
+from torch import nn, Tensor
 from torch.utils.data import DataLoader
 import wandb
 
@@ -14,7 +14,6 @@ from .datasets import UNK_IDX, GloVeDataset, CoMatrixDataset
 from .text_normalizer import text_normalizer
 
 PAD_IDX = 0
-UNK_IDX = 1
 
 
 class LitGloVe(pl.LightningModule):
@@ -22,7 +21,7 @@ class LitGloVe(pl.LightningModule):
 
     Args
     ----------
-    `co_matrix`: torch.Tensor
+    `co_matrix`: Tensor
         Co-occurrence matrix, a sparse torch tensor.
     `seq_len`: int
         Sequence length; standard torch rnn arg.
@@ -71,19 +70,19 @@ class LitGloVe(pl.LightningModule):
     `get_embedding_dot`:
         Returns the dot-product between the vectors corresponding to a pair
         of word indices.
-    `pretrained_word_embedding`: torch.Tensor, optional
+    `pretrained_word_embedding`: Tensor, optional
         Optionally provide a pretrained tensor for fine-tuning.
-    `pretrained_context_embedding`: torch.Tensor, optional
+    `pretrained_context_embedding`: Tensor, optional
         Optionally provide a pretrained tensor for fine-tuning.
-    pretrained_word_bias`: torch.Tensor, optional
+    pretrained_word_bias`: Tensor, optional
         Optionally provide a pretrained tensor for fine-tuning.
-    `pretrained_context_bias`: torch.Tensor, optional
+    `pretrained_context_bias`: Tensor, optional
         Optionally provide a pretrained tensor for fine-tuning.
     """
 
     def __init__(
         self,
-        co_matrix: torch.Tensor,
+        co_matrix: Tensor,
         embedding_dim: int = 512,
         x_max: int = 100,
         alpha: float = 0.75,
@@ -97,10 +96,10 @@ class LitGloVe(pl.LightningModule):
         num_workers: int = 0,
         persistent_workers: bool = False,
         pin_memory: bool = False,
-        pretrained_word_embedding: Optional[torch.Tensor] = None,
-        pretrained_context_embedding: Optional[torch.Tensor] = None,
-        pretrained_word_bias: Optional[torch.Tensor] = None,
-        pretrained_context_bias: Optional[torch.Tensor] = None,
+        pretrained_word_embedding: Optional[Tensor] = None,
+        pretrained_context_embedding: Optional[Tensor] = None,
+        pretrained_word_bias: Optional[Tensor] = None,
+        pretrained_context_bias: Optional[Tensor] = None,
         **logging_kwargs: Dict[str, Union[float, int, str]],
     ) -> None:
         super().__init__()
@@ -187,16 +186,14 @@ class LitGloVe(pl.LightningModule):
             }
         return optim_dict
 
-    def forward(
-        self, rows: torch.Tensor, cols: torch.Tensor
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    def forward(self, rows: Tensor, cols: Tensor) -> Tuple[Tensor, Tensor]:
         """Returns a tuple of the word and context vectors, respectively."""
         # Input is a tuple of indices
         word_vectors = self.word_embedding(rows)
         context_vectors = self.context_embedding(cols)
         return word_vectors, context_vectors
 
-    def _f_glove(self, co_matrix_elements: torch.Tensor) -> torch.Tensor:
+    def _f_glove(self, co_matrix_elements: Tensor) -> Tensor:
         """The f function from the GloVe paper."""
         condition = co_matrix_elements < self.hparams["x_max"]
         out = torch.where(
@@ -208,12 +205,12 @@ class LitGloVe(pl.LightningModule):
 
     def _criterion(
         self,
-        word_vectors: torch.Tensor,
-        context_vectors: torch.Tensor,
-        word_bias: torch.Tensor,
-        context_bias: torch.Tensor,
-        co_matrix_elements: torch.Tensor,
-    ) -> torch.Tensor:
+        word_vectors: Tensor,
+        context_vectors: Tensor,
+        word_bias: Tensor,
+        context_bias: Tensor,
+        co_matrix_elements: Tensor,
+    ) -> Tensor:
         """The loss function from the GloVe paper. We add a small value to all
         co_matrix_elements before taking the log to regulate zero entries.
         """
@@ -238,8 +235,8 @@ class LitGloVe(pl.LightningModule):
         return loader
 
     def training_step(
-        self, batch: Tuple[torch.Tensor, torch.Tensor, torch.Tensor], batch_idx: int
-    ) -> Dict[str, torch.Tensor]:
+        self, batch: Tuple[Tensor, Tensor, Tensor], batch_idx: int
+    ) -> Dict[str, Tensor]:
         rows, cols, co_matrix_elements = batch
         word_vectors, context_vectors = self(rows, cols)
         word_bias = self.word_bias[rows]
@@ -249,9 +246,7 @@ class LitGloVe(pl.LightningModule):
         )
         return {"loss": loss}
 
-    def training_epoch_end(
-        self, training_step_outputs: Dict[str, torch.Tensor]
-    ) -> None:
+    def training_epoch_end(self, training_step_outputs: Dict[str, Tensor]) -> None:
         """Save to wandb, if save_models_to_wandb."""
         mean_loss = torch.tensor(
             [batch["loss"] for batch in training_step_outputs]
@@ -286,7 +281,7 @@ class LitGloVe(pl.LightningModule):
             sep="\n",
         )
 
-    def get_embedding_weights(self) -> torch.Tensor:
+    def get_embedding_weights(self) -> Tensor:
         """Returns the mean of the word and context embedding weights."""
         with torch.no_grad():
             word_weights = self.word_embedding.weight.data
@@ -294,13 +289,13 @@ class LitGloVe(pl.LightningModule):
             mean_weights = (word_weights + context_weights) / 2
             return mean_weights.clone().detach()
 
-    def get_embedding_biases(self) -> torch.Tensor:
+    def get_embedding_biases(self) -> Tensor:
         """Returns the mean of the word and context biases."""
         with torch.no_grad():
             mean_bias = (self.word_bias + self.context_bias) / 2
             return mean_bias.clone().detach()
 
-    def get_embedding_vector(self, idx: int) -> torch.Tensor:
+    def get_embedding_vector(self, idx: int) -> Tensor:
         """
         Returns the mean of the word and context vectors corresponding to a
         given index.
@@ -311,7 +306,7 @@ class LitGloVe(pl.LightningModule):
             mean_vector = (word_vector + context_vector) / 2
             return mean_vector.clone().detach()
 
-    def get_unit_embedding_vector(self, idx: int) -> torch.Tensor:
+    def get_unit_embedding_vector(self, idx: int) -> Tensor:
         """
         Returns the mean of the word and context vectors with corresponding to
         a given index whose length has been normalized to 1.
@@ -321,7 +316,7 @@ class LitGloVe(pl.LightningModule):
         unit_vector = vector / vector_norm
         return unit_vector.clone().detach()
 
-    def get_embedding_cosine(self, idx1: int, idx2: int) -> torch.Tensor:
+    def get_embedding_cosine(self, idx1: int, idx2: int) -> Tensor:
         """Returns the cosine between the mean vectors corresponding to the
         provided indices.
         """
@@ -331,7 +326,7 @@ class LitGloVe(pl.LightningModule):
             cos = unit_vector_1 @ unit_vector_2
             return cos.clone().detach()
 
-    def get_embedding_dot(self, idx1: int, idx2: int) -> torch.Tensor:
+    def get_embedding_dot(self, idx1: int, idx2: int) -> Tensor:
         """Returns the dot product between the mean vectors corresponding
         to the provided indices.
         """
@@ -342,8 +337,8 @@ class LitGloVe(pl.LightningModule):
             return dot.clone().detach()
 
     def get_word_context_vectors(
-        self, rows: torch.Tensor, cols: torch.Tensor
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        self, rows: Tensor, cols: Tensor
+    ) -> Tuple[Tensor, Tensor]:
         """Returns the word and context vectors associated with indices
         rows and cols, respectively.
         """
@@ -500,7 +495,7 @@ class CoMatrixBuilder:
             pin_memory=self.pin_memory,
         )
 
-    def _get_sparse_window_weights(self, context: torch.Tensor) -> torch.Tensor:
+    def _get_sparse_window_weights(self, context: Tensor) -> Tensor:
         batch_size = context.shape[0]
         sparse_window_weights = torch.zeros(
             batch_size, self.vocab_size, dtype=torch.int64, device=self.device
@@ -509,7 +504,7 @@ class CoMatrixBuilder:
         sparse_window_weights.scatter_add_(1, context, expanded_window_weights)
         return sparse_window_weights
 
-    def _fill_co_matrix(self, center_idx: torch.Tensor, context: torch.Tensor) -> None:
+    def _fill_co_matrix(self, center_idx: Tensor, context: Tensor) -> None:
         sparse_window_weights = self._get_sparse_window_weights(context)
         self.co_matrix.index_add_(0, center_idx, sparse_window_weights)
 
@@ -554,12 +549,11 @@ class CoMatrixBuilder:
 
         if self.perform_symmetry_sanity_check:
             max_asymm = torch.max(self.co_matrix - self.co_matrix.T)
+            right_window_weights_max_count = torch.arange(
+                1, self.right_window_weights.shape[0] + 1, dtype=torch.int64
+            )
             max_possible_asymm = (
-                2
-                * self.right_window_weights
-                @ torch.arange(
-                    1, self.right_window_weights.shape[0] + 1, dtype=torch.int64
-                )
+                2 * self.right_window_weights @ right_window_weights_max_count
             )
             if max_asymm > max_possible_asymm:
                 warnings.warn(

@@ -1,6 +1,7 @@
 from typing import Dict, Optional
 
 import torch
+from torch import Tensor
 
 from .text_normalizer import text_normalizer
 
@@ -15,7 +16,7 @@ def str_to_one_hot(
     seq_len: Optional[int] = None,
     check_normalization: bool = False,
     strip_before_normalization_check: bool = False,
-) -> torch.Tensor:
+) -> Tensor:
     """One-hot-encode a string `s`.
 
     Description
@@ -42,7 +43,7 @@ def str_to_one_hot(
 
     Returns
     ----------
-    `s_tensor`: torch.Tensor
+    `s_tensor`: Tensor
         One-hot encoded tensor.
     """
     if check_normalization:
@@ -71,7 +72,7 @@ def str_to_one_hot(
 
 
 def one_hot_to_str(
-    tensor: torch.Tensor, idx_to_char: Dict[int, str], check_normalization: bool = False
+    tensor: Tensor, idx_to_char: Dict[int, str], check_normalization: bool = False
 ) -> str:
     """Decode a one-hot-encoded tensor.
 

@@ -5,7 +5,7 @@ import warnings
 
 import pandas as pd
 import torch
-from torch import nn
+from torch import nn, Tensor
 import torch.nn.functional as F
 import torchmetrics
 
@@ -96,8 +96,8 @@ class LitRNNLoggingBaseLM(LitRNNLoggingBaseAV):
         )
 
     def forward(
-        self, input: torch.Tensor, hiddens: Optional[torch.Tensor] = None
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        self, input: Tensor, hiddens: Optional[Tensor] = None
+    ) -> Tuple[Tensor, Tensor]:
         """Returns scores shaped as (batch_size, classes, seq_len) and
         the hidden state. This output shape is expected both by cross_entropy
         and the torchmetrics classes.
@@ -113,18 +113,18 @@ class LitRNNLoggingBaseLM(LitRNNLoggingBaseAV):
 
     def scores_loss_hiddens(
         self,
-        inputs: torch.Tensor,
-        targets: torch.Tensor,
-        hiddens: Optional[torch.Tensor] = None,
-    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        inputs: Tensor,
+        targets: Tensor,
+        hiddens: Optional[Tensor] = None,
+    ) -> Tuple[Tensor, Tensor, Tensor]:
         """Returns the scores, losses, and hiddens."""
         scores, hiddens = self(inputs, hiddens)
         loss = F.cross_entropy(scores, targets)
         return scores, loss, hiddens
 
     def get_probs_hiddens(
-        self, input: torch.Tensor, hiddens: Optional[torch.Tensor] = None
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        self, input: Tensor, hiddens: Optional[Tensor] = None
+    ) -> Tuple[Tensor, Tensor]:
         """Returns probs, hiddens, with probs shaped as
         (batch_size, classes, seq_len).
         """
@@ -282,7 +282,7 @@ class LitOneHotCharRNNNextLM(LitRNNLoggingBaseLM):
             self.fc_layers[1::2] = [nn.ReLU() for _ in range(num_relus)]
             self.fc_layers = nn.ModuleList(self.fc_layers)
 
-    def _str_to_one_hot(self, s: str) -> torch.Tensor:
+    def _str_to_one_hot(self, s: str) -> Tensor:
         """Returns one-hot-encoded text with a leading singleton dimension."""
         return str_to_one_hot(s=s, char_to_idx=self._char_to_idx)[None].to(self.device)
 
@@ -364,7 +364,7 @@ class LitEmbeddingRNNNextLM(LitRNNLoggingBaseLM):
     `logging_kwargs`: None or dict, optional
         Optional kwargs which don't affect performance, but which will be
         tracked by loggers such as wandb. Useful for tracking batch size, e.g.
-    `embedding_from_pretrained`: None or torch.Tensor, optional
+    `embedding_from_pretrained`: None or Tensor, optional
         Optionally load a pre-trained tensor into the embedding layer.
     `freeze_pretrained`: bool, default = True
         Flag for freezing pretrained embedding layer.
@@ -391,7 +391,7 @@ class LitEmbeddingRNNNextLM(LitRNNLoggingBaseLM):
         recurrent_dropout: Optional[float] = None,
         truncated_bptt_steps: Optional[int] = None,
         save_models_to_wandb: bool = False,
-        embedding_from_pretrained: Optional[torch.Tensor] = None,
+        embedding_from_pretrained: Optional[Tensor] = None,
         freeze_pretrained: Optional[bool] = True,
         **logging_kwargs: Dict[str, Union[float, int, str]]
     ) -> None:
