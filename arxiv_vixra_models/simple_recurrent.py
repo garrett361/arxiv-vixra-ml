@@ -270,7 +270,7 @@ class LitRNNLoggingBaseAV(pl.LightningModule):
         print(
             f"Saved best {metric} at global step: {self.global_step}",
             f"Epoch: {self.current_epoch}",
-            f"Validation accuracy: {self.val_metrics_dict[metric].compute().item()}",
+            f"Validation accuracy: {self.val_metrics_dict['val_acc'].compute().item()}",
             f"Validation Loss: {self._curr_val_loss.item()}",
             sep="\n",
         )
