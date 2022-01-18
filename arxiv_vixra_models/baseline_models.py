@@ -162,7 +162,7 @@ class LitOneHotFC(LitMinimalLoggingBase):
     seq_len : int
         Length of text (counted by number of characters.)
     tokens_df : DataFrame
-        DataFrame containing 'char' and 'idx' columns for one-hot encoding.
+        Character-to-index data stored in 'char' and 'idx' columns.
     fc_dims : Sequence[int], default None
         Tuple of hidden dimension sizes. Default implements [64, 32].
     zero_fc_bias_init : bool, default True

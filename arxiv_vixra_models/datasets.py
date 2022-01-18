@@ -32,7 +32,7 @@ class OneHotCharDatasetAV(Dataset):
     text_df : DataFrame
         DataFrame containing text.
     tokens_df : DataFrame
-        DataFrame containing 'char' and 'idx' columns for one-hot encoding.
+        Character-to-index data stored in 'char' and 'idx' columns.
     text_column : str
         Column text DataFrames containing  desired text, e.g. `'title'`.
     seq_len : int
@@ -120,7 +120,7 @@ class OneHotCharDatasetNextLM(Dataset):
     text : str
         Training text.
     tokens_df : DataFrame
-        DataFrame containing 'char' and 'idx' columns for one-hot encoding.
+        Character-to-index data stored in 'char' and 'idx' columns.
     seq_len : int
         Sequence length used for processing text.
     check_normalization : bool, default True
@@ -300,13 +300,11 @@ class EmbeddingDatasetNextLM(Dataset):
     Description
     ----------
 
-    Assumes each row in text_df has 'source' column which
-    is either 'arxiv' or 'vixra' and that a separate feather file mapping words
-    to integers exists. Outputs integer-encoded words. tokens_df DataFrame
-    is expected to have a 'count' column tallying
-    the number of times each word appeared in the training set and words to be
-    sorted in descending order by count. Padding and <UNK> are assumed *not* to
-    be in tokens.
+    Assumes each row in text_df has 'source' column which is either 'arxiv'
+    or 'vixra'. Outputs integer-encoded words. tokens_df DataFrame is expected
+    to have a 'count' column tallying the number of times each word appeared in
+    the training set and words to be     sorted in descending order by count.
+    Padding and <UNK> are assumed *not* to be in tokens.
 
     Parameters
     ----------

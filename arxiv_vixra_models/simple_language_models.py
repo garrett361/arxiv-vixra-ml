@@ -152,8 +152,7 @@ class LitOneHotCharRNNNextLM(LitRNNLoggingBaseLM):
     seq_len : int
         Sequence length; standard torch rnn arg.
     tokens_df : DataFrame
-        DataFrame containing 'char' and 'idx' columns for one-hot encoding. Used to determine
-        input_size arg of recurrent layer.
+        Character-to-index data stored in 'char' and 'idx' columns.
     rnn_type : str in ('RNN', 'LSTM', 'GRU')
         RNN architecture.
     num_layers : int, default 1
@@ -318,7 +317,7 @@ class LitEmbeddingRNNNextLM(LitRNNLoggingBaseLM):
     seq_len : int
         Sequence length; standard torch rnn arg.
     tokens_df : DataFrame
-        DataFrame used to determine num_embeddings arg of nn.Embedding.
+        Token counts data stored in 'word' and 'count' columns.
     min_word_count : int, default 1
         Minimum count for a word in tokens_df to be included in the vocabulary.
     rnn_type : str in ('RNN', 'LSTM', 'GRU')
