@@ -31,20 +31,20 @@ class OneHotCharDatasetAV(Dataset):
     ----------
     `data`: str or pd.DataFrame
         DataFrame object or path to data feather file.
-    `tokens`: str or pd.DataFrame
+    tokens : str or pd.DataFrame
         DataFrame object or path to character feather file.
-    `text_column`: str
+    text_column : str
         Column in data feather file containing text, e.g. `'title'`.
-    `seq_len`: int
+    seq_len : int
         Sequence length used for processing text.
-    `sample_size`: int or float or None, default=None
+    sample_size : int or float or None, default=None
         If not None, include only a specific number of data points (if int) or
         specific fraction of data (if float), randomly chosen from the data.
         Applied separately to each training set: train, valid, and test.
-    `check_normalization`: bool, default = True
+    `check_normalization`: bool, default True
         Check whether the text data was normalized according to text_normalizer.
 
-    Notable Methods
+    Methods
     ----------
     `__getitem__`
         Returns `(text_tensor, source_int)`  where `text_tensor` is the
@@ -121,16 +121,16 @@ class OneHotCharDatasetNextLM(Dataset):
     ----------
     `text`: str
         Training text.
-    `tokens`: str or pd.DataFrame
+    tokens : str or pd.DataFrame
         DataFrame object or path to character feather file.
-    `seq_len`: int
+    seq_len : int
         Sequence length used for processing text.
-    `check_normalization`: bool, default = True
+    `check_normalization`: bool, default True
         Check whether the text data was normalized according to text_normalizer.
-    `strip_before_normalization_check`: bool, default = True
+    `strip_before_normalization_check`: bool, default True
         Flag for whether to strip text before performing normalization check.
 
-    Notable Methods
+    Methods
     ----------
     `__getitem__`
         Returns `(text_tensor, next_text_classes)`  where `text_tensor` is the
@@ -206,22 +206,22 @@ class EmbeddingDatasetAV(Dataset):
     ----------
     `data`: str or pd.DataFrame
         DataFrame object or path to data feather file.
-    `tokens`: str or pd.DataFrame
+    tokens : str or pd.DataFrame
         DataFrame object or path to vocabulary feather file.
-    `min_word_count`: int, default = 1
+    `min_word_count`: int, default 1
         Minimum count for a word in tokens to be included in the vocabulary.
-    `text_column`: str
+    text_column : str
         Column in data feather file containing text, e.g. `'title'`.
-    `seq_len`: int
+    seq_len : int
         Sequence length used for processing text.
-    `sample_size`: int or float or None, default=None
+    sample_size : int or float or None, default=None
         If not None, include only a specific number of data points (if int) or
         specific fraction of data (if float), randomly chosen from the data.
         Applied separately to each training set: train, valid, and test.
-    `check_normalization`: bool, default = True
+    `check_normalization`: bool, default True
         Check whether the text data was normalized according to text_normalizer.
 
-    Notable Methods
+    Methods
     ----------
     `__getitem__`
         Returns `(text_tensor, source_int)`  where `text_tensor` is the
@@ -322,18 +322,18 @@ class EmbeddingDatasetNextLM(Dataset):
     ----------
     `text`: str
         Training text.
-    `tokens`: str or pd.DataFrame
+    tokens : str or pd.DataFrame
         DataFrame object or path to vocabulary feather file.
-    `min_word_count`: int, default = 1
+    `min_word_count`: int, default 1
         Minimum count for a word in tokens to be included in the vocabulary.
-    `seq_len`: int
+    seq_len : int
         Sequence length used for processing text.
-    `check_normalization`: bool, default = True
+    `check_normalization`: bool, default True
         Check whether the text data was normalized according to text_normalizer.
-    `strip_before_normalization_check`: bool, default = True
+    `strip_before_normalization_check`: bool, default True
         Flag for whether to strip text before performing normalization check.
 
-    Notable Methods
+    Methods
     ----------
     `__getitem__`
         Returns `(text_tensor, next_text_classes)`  where `text_tensor` is the
@@ -423,7 +423,7 @@ class GloVeDataset(Dataset):
     `co_matrix`: Tensor
         Co-occurrence matrix, a sparse torch tensor.
 
-    Notable Methods
+    Methods
     ----------
     `__getitem__`
         Returns a tuple of tensors: row, col, co_matrix_element, where
@@ -466,12 +466,12 @@ class CoMatrixDataset(Dataset):
         Text to to be embedded
     `word_to_idx`: dict
         Mapping from words to indices.
-    `context_window`: int, default = 2
+    `context_window`: int, default 2
         Width of the context window used on either side of the center word.
-    `include_center_in_context`: bool, default = False
+    `include_center_in_context`: bool, default False
         Experimental flag for including the center word in its own context.
 
-    Notable Methods
+    Methods
     ----------
     `__getitem__`
         Returns a tuple of tensors: row, col, co_matrix_element, where

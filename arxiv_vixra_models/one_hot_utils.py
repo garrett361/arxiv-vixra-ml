@@ -34,11 +34,11 @@ def str_to_one_hot(
         Text to to be embedded
     `char_to_idx`: dict
         Mapping from chars to indices.
-    `seq_len`: int or None, default = 'None'
+    seq_len : int or None, default 'None'
         Force text to be of length seq_len, if not None.
-    `check_normalization`: bool, default = False
+    `check_normalization`: bool, default False
         Verify the text and char_to_idx mapping are of the proper formats.
-    `strip_before_normalization_check`: bool, default = False
+    `strip_before_normalization_check`: bool, default False
         Flag for whether to strip text before performing normalization check.
 
     Returns
@@ -88,7 +88,7 @@ def one_hot_to_str(
         Text to to be embedded
     `idx_to_char`: dict
         Mapping from chars to indices.
-    `check_normalization`: bool, default = False
+    `check_normalization`: bool, default False
         Verify the idx_to_char mapping has the proper form.
 
     Returns

@@ -29,14 +29,14 @@ class LitRNNLoggingBaseAV(pl.LightningModule):
 
     Args
     ----------
-    `seq_len`: int
+    seq_len : int
         Length of sequences passed to the recurrent architecture.
-    `lr`: float, default = 1e-3
+    `lr`: float, default 1e-3
         Learning rate for Adam optimizer.
-    `l2_reg`: float, default = 0.
+    `l2_reg`: float, default 0.
         Parameter controlling strength of l2 regularization on fully-connected
         layer weights.
-    `hidden_strategy`: in ('last', 'max', 'mean', 'concat'), default = 'last'
+    `hidden_strategy`: in ('last', 'max', 'mean', 'concat'), default 'last'
         Determines which information from the hidden states is propagated to
         the fully-connected classification layers: the state from the last
         step, the max element across all steps, the mean of all steps, or
@@ -47,11 +47,11 @@ class LitRNNLoggingBaseAV(pl.LightningModule):
     `lr_scheduler_args`: None or dict, optional
         Optional dictionary of arguments to be passed to the lr_scheduler.
         Overwrites every arg of the scheduler, apart from the optimizer.
-    `lr_scheduler_interval`: 'step' or 'epoch', default = 'step'
+    `lr_scheduler_interval`: 'step' or 'epoch', default 'step'
         Interval at which .step() is called for the lr_scheduler.
-    `lr_scheduler_monitor`: str, default = 'train_batch_loss
+    `lr_scheduler_monitor`: str, default 'train_batch_loss
         Metric monitored by scheduler, if applicable (e.g. ReduceLROnPlateau).
-    `save_models_to_wandb`: bool, default = False
+    `save_models_to_wandb`: bool, default False
         Toggles saving the best models according to validation accuracy or
         loss to wandb.
     """
@@ -340,25 +340,25 @@ class LitOneHotCharRNNAV(LitRNNLoggingBaseAV):
 
     Args
     ----------
-    `seq_len`: int
+    seq_len : int
         Sequence length; standard torch rnn arg.
-    `tokens`: str or pd.DataFrame
+    tokens : str or pd.DataFrame
         DataFrame object or path to character feather file. Used to determine
         input_size arg of recurrent layer.
     `rnn_type`: in ('RNN', 'LSTM', 'GRU')
         RNN architecture.
-    `num_layers`: int, default = 1
+    `num_layers`: int, default 1
         Number of rnn layers; standard torch rnn arg.
-    `hidden_size`: int, default = 128
+    `hidden_size`: int, default 128
         Hidden dimension size; standard torch rnn arg.
-    `hidden_strategy`: in ('last', 'max', 'mean', 'concat'), default = 'last'
+    `hidden_strategy`: in ('last', 'max', 'mean', 'concat'), default 'last'
         Determines which information from the hidden states is propagated to
         the fully-connected classification layers: the state from the last step,
         the max element across all steps, the mean of all steps, or all three
         preceding possibilities concatenated together.
-    `bidirectional`: bool, default = False
+    `bidirectional`: bool, default False
         Flag for whether the architecture is bidirectional
-    `lr`: float, default = 1e-3
+    `lr`: float, default 1e-3
         Learning rate for Adam optimizer.
     `lr_scheduler`: in (None, 'cyclic', 'plateau'), optional
         Toggles the use of a learning rate scheduler, either 'cyclic'
@@ -366,11 +366,11 @@ class LitOneHotCharRNNAV(LitRNNLoggingBaseAV):
     `lr_scheduler_args`: None or dict, optional
         Optional dictionary of arguments to be passed to the lr_scheduler.
         Overwrites every arg of the scheduler, apart from the optimizer.
-    `lr_scheduler_interval`: 'step' or 'epoch', default = 'step'
+    `lr_scheduler_interval`: 'step' or 'epoch', default 'step'
         Interval at which .step() is called for the lr_scheduler.
-    `lr_scheduler_monitor`: str, default = 'train_batch_loss
+    `lr_scheduler_monitor`: str, default 'train_batch_loss
         Metric monitored by scheduler, if applicable (e.g. ReduceLROnPlateau).
-    `l2_reg`: float, default = 0.
+    `l2_reg`: float, default 0.
         Parameter controlling strength of l2 regularization on fully-connected
         layer weights.
     `fc_dims`: None or Sequence[int], optional
@@ -378,13 +378,13 @@ class LitOneHotCharRNNAV(LitRNNLoggingBaseAV):
         layer.
     `fc_dropout`: None or float, optional
         Set dropout probability before fully-connected layers.
-    `zero_fc_bias_init`: bool, default = True
+    `zero_fc_bias_init`: bool, default True
         Flag for initializing the bias of all fully connected layers to zero.
     `recurrent_dropout`: None or float, optional
         Set dropout probability between recurrent layers, if any.
     `truncated_bptt_steps`: None or int or float, optional
         Implements truncated backpropagation through time, if provided.
-    `save_models_to_wandb`: bool, default = False
+    `save_models_to_wandb`: bool, default False
         Toggles saving the best models according to validation accuracy or
         loss to wandb.
     `logging_kwargs`: None or dict, optional
@@ -507,29 +507,29 @@ class LitEmbeddingRNNAV(LitRNNLoggingBaseAV):
 
     Args
     ----------
-    `seq_len`: int
+    seq_len : int
         Sequence length; standard torch rnn arg.
-    `tokens`: str or pd.DataFrame
+    tokens : str or pd.DataFrame
         DataFrame object or path to vocabulary feather file. Used to determine
         num_embeddings arg of nn.Embedding.
-    `min_word_count`: int, default = 1
+    `min_word_count`: int, default 1
         Minimum count for a word in tokens to be included in the vocabulary.
     `rnn_type`: in ('RNN', 'LSTM', 'GRU')
         RNN architecture.
-    `embedding_dim`: int, default = 256
+    `embedding_dim`: int, default 256
         Size of embedding dimension; standard torch nn.Embedding arg.
-    `num_layers`: int, default = 1
+    `num_layers`: int, default 1
         Number of rnn layers; standard torch rnn arg.
-    `hidden_size`: int, default = 128
+    `hidden_size`: int, default 128
         Hidden dimension size; standard torch rnn arg.
-    `hidden_strategy`: in ('last', 'max', 'mean', 'concat'), default = 'last'
+    `hidden_strategy`: in ('last', 'max', 'mean', 'concat'), default 'last'
         Determines which information from the hidden states is propagated to
         the fully-connected classification layers: the state from the last step,
         the max element across all steps, the mean of all steps, or all three
         preceding possibilities concatenated together.
-    `bidirectional`: bool, default = False
+    `bidirectional`: bool, default False
         Flag for whether the architecture is bidirectional
-    `lr`: float, default = 1e-3
+    `lr`: float, default 1e-3
         Learning rate for Adam optimizer.
     `lr_scheduler`: in ('cyclic', 'plateau', None), optional
         Toggles the use of a learning rate scheduler, either 'cyclic'
@@ -537,11 +537,11 @@ class LitEmbeddingRNNAV(LitRNNLoggingBaseAV):
     `lr_scheduler_args`: None or dict, optional
         Optional dictionary of arguments to be passed to the lr_scheduler.
         Overwrites every arg of the scheduler, apart from the optimizer.
-    `lr_scheduler_interval`: 'step' or 'epoch', default = 'step'
+    `lr_scheduler_interval`: 'step' or 'epoch', default 'step'
         Interval at which .step() is called for the lr_scheduler.
-    `lr_scheduler_monitor`: str, default = 'train_batch_loss
+    `lr_scheduler_monitor`: str, default 'train_batch_loss
         Metric monitored by scheduler, if applicable (e.g. ReduceLROnPlateau).
-    `l2_reg`: float, default = 0.
+    `l2_reg`: float, default 0.
         Parameter controlling strength of l2 regularization on final
         fully-connected layer weights.
     `fc_dims`: None or Sequence[int], optional
@@ -549,13 +549,13 @@ class LitEmbeddingRNNAV(LitRNNLoggingBaseAV):
         layer.
     `fc_dropout`: None or float, optional
         Set dropout probability before fully-connected layers.
-    `zero_fc_bias_init`: bool, default = True
+    `zero_fc_bias_init`: bool, default True
         Flag for initializing the bias of all fully connected layers to zero.
     `recurrent_dropout`: None or float, optional
         Set dropout probability between recurrent layers, if any.
     `truncated_bptt_steps`: None or int or float, optional
         Implements truncated backpropagation through time, if provided.
-    `save_models_to_wandb`: bool, default = False
+    `save_models_to_wandb`: bool, default False
         Toggles saving the best models according to validation accuracy and
         loss to wandb.
     `logging_kwargs`: None or dict, optional
@@ -563,10 +563,10 @@ class LitEmbeddingRNNAV(LitRNNLoggingBaseAV):
         tracked by loggers such as wandb. Useful for tracking batch size, e.g.
     `embedding_from_pretrained`: None or Tensor, optional
         Optionally load a pre-trained tensor into the embedding layer.
-    `freeze_pretrained`: bool, default = True
+    `freeze_pretrained`: bool, default True
         Flag for freezing pretrained embedding layer.
 
-    Notable Methods
+    Methods
     ----------
     `get_embedding_weights`:
         Returns the embedding layer weights.

@@ -25,35 +25,36 @@ class OneHotCharDataModuleAV(pl.LightningDataModule):
 
     Args
     ----------
-    `train_data`: pd.DataFrame or str
+    train_data : pd.DataFrame or str
         DataFrame object or path to training data feather file.
-    `val_data`: pd.DataFrame or str
+    val_data :  pd.DataFrame or str
         DataFrame object or path to training data feather file.
-    `tokens`: pd.DataFrame or str
+    tokens : pd.DataFrame or str
         DataFrame object or path to character feather file.
-    `text_column`: str
+    text_column : str
         Column in data feather file containing text, e.g. `'title'`.
-    `seq_len`: int
+    seq_len : int
         Sequence length used for processing text.
-    `batch_size`: int, default = 1
+    batch_size : int, default 1
         Dataloader batch size.
-    `num_workers`: int, default = 1
+    num_workers : int, default 1
         Dataloader's number of workers used.
-    `pin_memory`: bool, default = False
+    pin_memory : bool, default False
         Dataloader's pin_memory option.
-    `persistent_workers`: bool, default = False
+    persistent_workers : bool, default False
         Dataloader's persistent_workers option.
-    `sample_size`: int or float or None, default = None
+    sample_size : int or float or None, default None
         If not None, include only a specific number of data points (if int) or
         specific fraction of data (if float), randomly chosen from the data.
         Applied separately to each training set: train, valid, and test.
-    `check_normalization`: bool, default = True
+    `check_normalization`: bool, default True
         Check whether the text data was normalized according to text_normalizer.
 
-    Notable Methods
+    Notes
     ----------
     `test_dataloader`
-        Not-yet implemented as to protect against accidentally viewing test set.
+        Not-yet implemented method as to protect against accidentally viewing
+        test set.
     """
 
     def __init__(
@@ -152,27 +153,28 @@ class OneHotCharDataModuleNextLM(pl.LightningDataModule):
         Text for training.
     `val_text`: str
         Text for validation.
-    `tokens`: pd.DataFrame or str
+    tokens : pd.DataFrame or str
         DataFrame object or path to character feather file.
-    `seq_len`: int
+    seq_len : int
         Sequence length used for processing text.
-    `batch_size`: int, default = 1
+    batch_size : int, default 1
         Dataloader batch size.
-    `num_workers`: int, default = 1
+    num_workers : int, default 1
         Dataloader's number of workers used.
-    `pin_memory`: bool, default = False
+    pin_memory : bool, default False
         Dataloader's pin_memory option.
-    `persistent_workers`: bool, default = False
+    persistent_workers : bool, default False
         Dataloader's persistent_workers option.
-    `check_normalization`: bool, default = True
+    `check_normalization`: bool, default True
         Check whether the text data was normalized according to text_normalizer.
-    `strip_before_normalization_check`: bool, default = True
+    `strip_before_normalization_check`: bool, default True
         Flag for whether to strip text before performing normalization check.
 
-    Notable Methods
+    Notes
     ----------
     `test_dataloader`
-        Not-yet implemented as to protect against accidentally viewing test set.
+        Not-yet implemented method as to protect against accidentally viewing
+        test set.
     """
 
     def __init__(
@@ -223,6 +225,8 @@ class OneHotCharDataModuleNextLM(pl.LightningDataModule):
             raise NotImplementedError("Should not be using test dataset yet.")
 
     def train_dataloader(self) -> DataLoader:
+        # Setting drop_last = True is important for avoiding end-of-epoch
+        # loss blow-ups.
         train_loader = DataLoader(
             dataset=self._train_dataset,
             batch_size=self.batch_size,
@@ -261,37 +265,38 @@ class EmbeddingDataModuleAV(pl.LightningDataModule):
 
     Args
     ----------
-    `train_data`: pd.DataFrame or str
+    train_data : pd.DataFrame or str
         DataFrame object or path to training data feather file.
-    `val_data`: pd.DataFrame or str
+    val_data :  pd.DataFrame or str
         DataFrame object or path to training data feather file.
-    `tokens`: pd.DataFrame or str
+    tokens : pd.DataFrame or str
         DataFrame object or path to vocabulary feather file.
-    `min_word_count`: int, default = 1
+    `min_word_count`: int, default 1
         Minimum count for a word in tokens to be included in the vocabulary.
-    `text_column`: str
+    text_column : str
         Column in data feather file containing text, e.g. `'title'`.
-    `seq_len`: int
+    seq_len : int
         Sequence length used for processing text.
-    `batch_size`: int, default = 1
+    batch_size : int, default 1
         Dataloader batch size.
-    `num_workers`: int, default = 1
+    num_workers : int, default 1
         Dataloader's number of workers used.
-    `pin_memory`: bool, default = False
+    pin_memory : bool, default False
         Dataloader's pin_memory option.
-    `persistent_workers`: bool, default = False
+    persistent_workers : bool, default False
         Dataloader's persistent_workers option.
-    `sample_size`: int or float or None, default = None
+    sample_size : int or float or None, default None
         If not None, include only a specific number of data points (if int) or
         specific fraction of data (if float), randomly chosen from the data.
         Applied separately to each training set: train, valid, and test.
-    `check_normalization`: bool, default = True
+    `check_normalization`: bool, default True
         Check whether the text data was normalized according to text_normalizer.
 
-    Notable Methods
+    Notes
     ----------
     `test_dataloader`
-        Not-yet implemented as to protect against accidentally viewing test set.
+        Not-yet implemented method as to protect against accidentally viewing
+        test set.
     """
 
     def __init__(
@@ -391,29 +396,30 @@ class EmbeddingDataModuleNextLM(pl.LightningDataModule):
         Text for training.
     `val_text`: str
         Text for validation.
-    `tokens`: pd.DataFrame or str
+    tokens : pd.DataFrame or str
         DataFrame object or path to vocabulary feather file.
-    `min_word_count`: int, default = 1
+    `min_word_count`: int, default 1
         Minimum count for a word in tokens to be included in the vocabulary.
-    `seq_len`: int
+    seq_len : int
         Sequence length used for processing text.
-    `batch_size`: int, default = 1
+    batch_size : int, default 1
         Dataloader batch size.
-    `num_workers`: int, default = 1
+    num_workers : int, default 1
         Dataloader's number of workers used.
-    `pin_memory`: bool, default = False
+    pin_memory : bool, default False
         Dataloader's pin_memory option.
-    `persistent_workers`: bool, default = False
+    persistent_workers : bool, default False
         Dataloader's persistent_workers option.
-    `check_normalization`: bool, default = True
+    `check_normalization`: bool, default True
         Check whether the text data was normalized according to text_normalizer.
-    `strip_before_normalization_check`: bool, default = True
+    `strip_before_normalization_check`: bool, default True
         Flag for whether to strip text before performing normalization check.
 
-    Notable Methods
+    Notes
     ----------
     `test_dataloader`
-        Not-yet implemented as to protect against accidentally viewing test set.
+        Not-yet implemented method as to protect against accidentally viewing
+        test set.
     """
 
     def __init__(

@@ -45,11 +45,11 @@ def str_to_idxs(
         Text to to be embedded
     `word_to_idx`: dict
         Mapping from words to indices.
-    `seq_len`: int or None, default = 'None'
+    seq_len : int or None, default 'None'
         Force text to be of length seq_len, if not None.
-    `check_normalization`: bool, default = False
+    `check_normalization`: bool, default False
         Verify the text and word_to_idx mapping are of the proper formats.
-    `strip_before_normalization_check`: bool, default = False
+    `strip_before_normalization_check`: bool, default False
         Flag for whether to strip text before performing normalization check.
 
     Returns
@@ -106,9 +106,9 @@ def idxs_to_str(
         Text to to be embedded
     `idx_to_word`: dict
         Mapping from indices to words.
-    `check_normalization`: bool, default = False
+    `check_normalization`: bool, default False
         Verify the idx_to_word mapping keys have the proper form.
-    `replace_pad_with_space`: bool,  default = True
+    `replace_pad_with_space`: bool,  default True
         Flag for replacing <PAD> with blank space.
 
     Returns
@@ -215,7 +215,7 @@ def topk_cosines(
         List of words to be compared
     `word_to_idx`: dict
         Mapping from words to indices.
-    `k`: int, default = 3
+    `k`: int, default 3
         k value for topk
 
     Returns
@@ -260,7 +260,7 @@ def topk_cosines_vectors(
         List of words to be compared
     `word_to_idx`: dict
         Mapping from words to indices.
-    `k`: int, default = 3
+    `k`: int, default 3
         k value for topk
 
     Returns
@@ -309,7 +309,7 @@ def topk_cosines_df(
         Mapping from words to indices.
     `idx_to_word`: dict
         Mapping from indices to words.
-    `k`: int, default = 3
+    `k`: int, default 3
         k value for topk.
 
     Returns
@@ -368,7 +368,7 @@ def topk_analogies(
         word0 : word1 :: word2 : ???.
     `word_to_idx`: dict
         Mapping from words to indices.
-    `k`: int, default = 3
+    `k`: int, default 3
         k value for topk.
 
     Returns
@@ -435,7 +435,7 @@ def topk_analogies_df(
         Mapping from words to indices.
     `idx_to_word`: dict
         Mapping from indices to words.
-    `k`: int, default = 3
+    `k`: int, default 3
         k value for topk.
 
     Returns
