@@ -1,16 +1,18 @@
+from copy import deepcopy
 from time import perf_counter
 from typing import Dict, Tuple, Union, Optional
 from typing_extensions import Literal
 import warnings
 
+from pandas import DataFrame
 import pytorch_lightning as pl
 import torch
 from torch import nn, Tensor
 from torch.utils.data import DataLoader
 import wandb
 
-from .datasets import UNK_IDX, GloVeDataset, CoMatrixDataset
-from .text_normalizer import text_normalizer
+from .datasets import GloVeDataset, CoMatrixDataset
+from .embedding_utils import word_to_idx_dict_from_df
 
 PAD_IDX = 0
 
@@ -345,10 +347,10 @@ class CoMatrixBuilder:
 
     Description
     ----------
-    Encoding performed using a word_to_idx dict mapping words to indices.
+    Encoding performed using a word_to_idx_dict dict mapping words to indices.
     <PAD> and <UNK> are expected to map to 0 and 1, respectively.
     Text is expected to have been passed through text_normalizer first.
-    Text normalization and proper mapping via word_to_idx can be verified
+    Text normalization and proper mapping via word_to_idx_dict can be verified
     through the check_normalization flag.
 
     The default behavior is to weight words in the context window by factors of
@@ -359,8 +361,10 @@ class CoMatrixBuilder:
     ----------
     text : str
         Text to to be embedded
-    word_to_idx : dict
-        Mapping from words to indices.
+    tokens_df : DataFrame
+        Token counts data stored in 'word' and 'count' columns.
+    min_word_count : int, default 1
+        Minimum count for a word in tokens_df to be included in the vocabulary.
     context_window : int, default 2
         Width of the context window used on either side of the center word.
     batch_size : int, default 128
@@ -378,8 +382,6 @@ class CoMatrixBuilder:
         as in GloVe. False weighs all context words equally.
     include_center_in_context : bool, default False
         Experimental flag for including the center word in its own context.
-    check_normalization : bool, default False
-        Verify the text and word_to_idx mapping are of the proper formats.
     perform_symmetry_sanity_check : bool, default True
         Flag for verifying that the co-occurrence matrix is symmetric, up to
         tolerances from text edges. A very memory-consuming check.
@@ -397,7 +399,8 @@ class CoMatrixBuilder:
     def __init__(
         self,
         text: str,
-        word_to_idx: Dict[str, int],
+        tokens_df: DataFrame,
+        min_word_count: int = 1,
         context_window: int = 2,
         batch_size: int = 128,
         device: torch.device = torch.device("cpu"),
@@ -410,22 +413,8 @@ class CoMatrixBuilder:
         perform_symmetry_sanity_check: bool = True,
     ) -> None:
         super().__init__()
-        if check_normalization:
-            assert text == text_normalizer(
-                text
-            ), "String not normalized as expected, apply text_normalizer first."
-            pad_check = word_to_idx.get("<PAD>", None)
-            assert (
-                pad_check == PAD_IDX
-            ), f"word_to_idx is expected to map <PAD> to {PAD_IDX}, not {pad_check}."
-            unk_check = word_to_idx.get("<UNK>", None)
-            assert (
-                unk_check == UNK_IDX
-            ), f"word_to_idx is expected to map <UNK> to {UNK_IDX}, not {unk_check}."
 
         self.text = text
-        self.word_to_idx = word_to_idx
-        self.vocab_size = len(word_to_idx)
         self.context_window = context_window
         self.batch_size = batch_size
         self.device = device
@@ -435,6 +424,21 @@ class CoMatrixBuilder:
         self.glove_window_weighting = glove_window_weighting
         self.include_center_in_context = include_center_in_context
         self.perform_symmetry_sanity_check = perform_symmetry_sanity_check
+
+        # Get num_embeddings from tokens
+        self.tokens_df = deepcopy(tokens_df)
+        if min_word_count > 1:
+            if "count" in self.tokens_df:
+                self.tokens_df = self.tokens_df[
+                    self.tokens_df["count"] >= min_word_count
+                ]
+            else:
+                warnings.warn(
+                    "count column does not exist in tokens_df DataFrame, min_word_count arg ignored."
+                )
+
+        self.word_to_idx_dict = word_to_idx_dict_from_df(self.tokens_df)
+        self.vocab_size = len(self.word_to_idx_dict)
 
         self._is_co_matrix_generated = False
         self.co_matrix = torch.zeros(
@@ -470,7 +474,7 @@ class CoMatrixBuilder:
 
         self._dataset = CoMatrixDataset(
             text=self.text,
-            word_to_idx=self.word_to_idx,
+            word_to_idx_dict=self.word_to_idx_dict,
             context_window=self.context_window,
             include_center_in_context=self.include_center_in_context,
         )

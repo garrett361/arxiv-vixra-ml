@@ -226,10 +226,12 @@ class LitOneHotCharRNNNextLM(LitRNNLoggingBaseLM):
 
         self.tokens_df = deepcopy(tokens_df)
         self.hparams["input_size"] = len(self.tokens_df)
-        self._char_to_idx = {
+        self._char_to_idx_dict = {
             row["char"]: row["idx"] for _, row in self.tokens_df.iterrows()
         }
-        self._idx_to_char = {idx: char for char, idx in self._char_to_idx.items()}
+        self._idx_to_char_dict = {
+            idx: char for char, idx in self._char_to_idx_dict.items()
+        }
 
         rnn_dict = {"RNN": nn.RNN, "LSTM": nn.LSTM, "GRU": nn.GRU}
         self.rnn = rnn_dict[rnn_type]
@@ -278,7 +280,9 @@ class LitOneHotCharRNNNextLM(LitRNNLoggingBaseLM):
 
     def _str_to_one_hot(self, s: str) -> Tensor:
         """Returns one-hot-encoded text with a leading singleton dimension."""
-        return str_to_one_hot(s=s, char_to_idx=self._char_to_idx)[None].to(self.device)
+        return str_to_one_hot(s=s, char_to_idx_dict=self._char_to_idx_dict)[None].to(
+            self.device
+        )
 
     def generate_text(self, seed=" ", text_char_len=512, topk=3) -> str:
         """Generates text of character length text_char_len starting from
@@ -295,7 +299,7 @@ class LitOneHotCharRNNNextLM(LitRNNLoggingBaseLM):
             prob_topk = probs.squeeze().topk(dim=0, k=topk)
             rand_idx = torch.multinomial(prob_topk.values, 1)
             next_char_idx = prob_topk.indices[rand_idx].item()
-            next_char = self._idx_to_char[next_char_idx]
+            next_char = self._idx_to_char_dict[next_char_idx]
             generated_text.append(next_char)
         return "".join(generated_text)
 

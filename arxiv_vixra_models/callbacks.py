@@ -144,9 +144,9 @@ class WandbVisualEmbeddingCallback(pl.Callback):
         List of words for PCA visualization.
     tsne_words : list of strs
         List of words for t-SNE visualization.
-    word_to_idx : dict
+    word_to_idx_dict : dict
         Mapping from words to indices.
-    idx_to_word : dict
+    idx_to_word_dict : dict
         Mapping from indices to words.
     k : int, default 5
         Top-k closest words are plotted in PCA and t-SNE.
@@ -168,8 +168,8 @@ class WandbVisualEmbeddingCallback(pl.Callback):
         heatmap_words: Sequence[str],
         pca_words: Sequence[str],
         tsne_words: Sequence[str],
-        word_to_idx: Dict[str, int],
-        idx_to_word: Dict[int, str],
+        word_to_idx_dict: Dict[str, int],
+        idx_to_word_dict: Dict[int, str],
         k: int = 5,
         pca_args: Optional[Dict] = None,
         tsne_args: Optional[Dict] = None,
@@ -182,8 +182,8 @@ class WandbVisualEmbeddingCallback(pl.Callback):
         self.heatmap_words = heatmap_words
         self.pca_words = pca_words
         self.tsne_words = tsne_words
-        self.word_to_idx = word_to_idx
-        self.idx_to_word = idx_to_word
+        self.word_to_idx_dict = word_to_idx_dict
+        self.idx_to_word_dict = idx_to_word_dict
         self.k = k
         self.pca_args = pca_args
         self.tsne_args = tsne_args
@@ -197,14 +197,14 @@ class WandbVisualEmbeddingCallback(pl.Callback):
         heatmap = embedding_cosine_heatmap(
             model=self.model,
             words=self.heatmap_words,
-            word_to_idx=self.word_to_idx,
+            word_to_idx_dict=self.word_to_idx_dict,
             title=self.heatmap_title,
         )
         pca = pca_3d_embedding_plotter_topk(
             model=self.model,
             words=self.pca_words,
-            word_to_idx=self.word_to_idx,
-            idx_to_word=self.idx_to_word,
+            word_to_idx_dict=self.word_to_idx_dict,
+            idx_to_word_dict=self.idx_to_word_dict,
             k=self.k,
             title=self.pca_title,
             pca_args=self.pca_args,
@@ -212,8 +212,8 @@ class WandbVisualEmbeddingCallback(pl.Callback):
         tsne = tsne_3d_embedding_plotter_topk(
             model=self.model,
             words=self.tsne_words,
-            word_to_idx=self.word_to_idx,
-            idx_to_word=self.idx_to_word,
+            word_to_idx_dict=self.word_to_idx_dict,
+            idx_to_word_dict=self.idx_to_word_dict,
             k=self.k,
             title=self.tsne_title,
             tsne_args=self.tsne_args,

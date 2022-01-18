@@ -1,3 +1,4 @@
+from collections import defaultdict
 from copy import deepcopy
 from typing import Tuple, Optional, Dict, Sequence
 
@@ -19,12 +20,11 @@ from .text_normalizer import text_normalizer
 
 PAD_IDX = 0
 UNK_IDX = 1
-BLANK_IDX = 0
 
 
 def str_to_idxs(
     s: str,
-    word_to_idx: Dict[str, int],
+    word_to_idx_dict: Dict[str, int],
     seq_len: Optional[int] = None,
     check_normalization: bool = True,
     strip_before_normalization_check: bool = False,
@@ -33,22 +33,22 @@ def str_to_idxs(
 
     Description
     ----------
-    Encoding performed using a word_to_idx dict mapping words to indices.
+    Encoding performed using a word_to_idx_dict dict mapping words to indices.
     <PAD> and <UNK> are expected to map to 0 and 1, respectively. Optionally
     force the text to be seq_len long.  Text is expected to have been passed
     through text_normalizer first. Text normalization and proper mapping via
-    word_to_idx can be verified through the check_normalization flag.
+    word_to_idx_dict can be verified through the check_normalization flag.
 
     Parameters
     ----------
     s : str
         Text to to be embedded
-    word_to_idx : dict
+    word_to_idx_dict : dict
         Mapping from words to indices.
     seq_len : int or None, default 'None'
         Force text to be of length seq_len, if not None.
     check_normalization : bool, default False
-        Verify the text and word_to_idx mapping are of the proper formats.
+        Verify the text and word_to_idx_dict mapping are of the proper formats.
     strip_before_normalization_check : bool, default False
         Flag for whether to strip text before performing normalization check.
 
@@ -62,14 +62,14 @@ def str_to_idxs(
         assert s_check == text_normalizer(
             s_check
         ), "String not normalized as expected, apply text_normalizer first."
-        pad_check = word_to_idx.get("<PAD>", None)
+        pad_check = word_to_idx_dict.get("<PAD>", None)
         assert (
             pad_check == PAD_IDX
-        ), f"word_to_idx is expected to map <PAD> to {PAD_IDX}, not {pad_check}."
-        unk_check = word_to_idx.get("<UNK>", None)
+        ), f"word_to_idx_dict is expected to map <PAD> to {PAD_IDX}, not {pad_check}."
+        unk_check = word_to_idx_dict.get("<UNK>", None)
         assert (
             unk_check == UNK_IDX
-        ), f"word_to_idx is expected to map <UNK> to {UNK_IDX}, not {unk_check}."
+        ), f"word_to_idx_dict is expected to map <UNK> to {UNK_IDX}, not {unk_check}."
 
     # Forcing sequence to be seq_len words long, if seq_len is not None.
     s_list = s.split()
@@ -78,16 +78,16 @@ def str_to_idxs(
         seq_len = s_len
     if seq_len > s_len:
         padding = (seq_len - s_len) * [PAD_IDX]
-        s_int_list = padding + [word_to_idx.get(w, UNK_IDX) for w in s_list]
+        s_int_list = padding + [word_to_idx_dict.get(w, UNK_IDX) for w in s_list]
     else:
-        s_int_list = [word_to_idx.get(w, UNK_IDX) for w in s_list[:seq_len]]
+        s_int_list = [word_to_idx_dict.get(w, UNK_IDX) for w in s_list[:seq_len]]
     s_int_tensor = torch.tensor(s_int_list)
     return s_int_tensor
 
 
 def idxs_to_str(
     tensor: Tensor,
-    idx_to_word: Dict[int, str],
+    idx_to_word_dict: Dict[int, str],
     check_normalization: bool = False,
     replace_pad_with_space: bool = True,
 ) -> str:
@@ -95,21 +95,21 @@ def idxs_to_str(
 
     Description
     ----------
-    Decoding performed using a idx_to_word dict mapping indices to words.
+    Decoding performed using a idx_to_word_dict dict mapping indices to words.
     <PAD> and <UNK> are assumed to map to 0 and 1, respectively.
-    Proper keys in idx_to_word can be verified through the check_normalization
+    Proper keys in idx_to_word_dict can be verified through the check_normalization
     flag. By default <PAD> is mapped to blank space for aesthetics.
 
     Parameters
     ----------
     s : str
         Text to to be embedded
-    idx_to_word : dict
+    idx_to_word_dict : dict
         Mapping from indices to words.
     check_normalization : bool, default False
-        Verify the idx_to_word mapping keys have the proper form.
+        Verify the idx_to_word_dict mapping keys have the proper form.
     replace_pad_with_space : bool,  default True
-        Flag for replacing <PAD> with blank space.
+        Flag for replacing <PAD> with blank space for nicer output.
 
     Returns
     ----------
@@ -117,32 +117,108 @@ def idxs_to_str(
         Decoded string.
     """
     if check_normalization:
-        pad_check = idx_to_word.get(PAD_IDX, None)
+        pad_check = idx_to_word_dict.get(PAD_IDX, None)
         assert (
             pad_check == "<PAD>"
-        ), f"idx_to_word is expected to map {PAD_IDX} to <PAD>, not {pad_check}."
-        idx_check = idx_to_word.get(UNK_IDX, None)
+        ), f"idx_to_word_dict is expected to map {PAD_IDX} to <PAD>, not {pad_check}."
+        idx_check = idx_to_word_dict.get(UNK_IDX, None)
         assert (
             idx_check == "<UNK>"
-        ), f"idx_to_word is expected to map {UNK_IDX} to <UNK>, not {idx_check}."
+        ), f"idx_to_word_dict is expected to map {UNK_IDX} to <UNK>, not {idx_check}."
     if replace_pad_with_space:
-        idx_to_word = deepcopy(idx_to_word)
-        idx_to_word[PAD_IDX] = " "
-    text = " ".join(idx_to_word[n.item()] for n in tensor)
+        idx_to_word_dict = deepcopy(idx_to_word_dict)
+        idx_to_word_dict[PAD_IDX] = " "
+    text = " ".join(idx_to_word_dict[n.item()] for n in tensor)
     return text
+
+
+def word_to_idx_dict_from_df(
+    df: DataFrame, word_col: str = "word", count_col: str = "count"
+) -> dict:
+    """Generates word_to_idx_dict dictionary from DataFrame.
+
+    Description
+    ----------
+    df is assumed not to contain <PAD> or <UNK>. These are
+    included in the output dict mapped to 0 and 1,
+    respectively. df is assumed to contain columns with the word
+    and count data representing the frequency of each word.  The
+    indices for all words in df are ordered by count.
+
+    Parameters
+    ----------
+    df : DataFrame
+        Dataframe holding char-idx mapping
+    word_col : str, default 'word'
+        Column in df holding to-be-tokenized text.
+    count_col : str, default 'count'
+        Column in df holding count data.
+
+    Returns
+    -------
+    dict
+        defaultdict with (word, idx) as (key, value) pairs and uknown
+        words mapping to 0.
+    """
+    df_count_sorted = df.sort_values(by=count_col, ascending=False)
+    words = df_count_sorted[word_col].values
+    words_and_idxs = zip(words, range(2, 2 + len(words)))
+
+    word_to_idx_dict = defaultdict(
+        lambda: UNK_IDX, {word: idx for word, idx in words_and_idxs}
+    )
+    word_to_idx_dict["<PAD>"] = PAD_IDX
+    word_to_idx_dict["<UNK>"] = UNK_IDX
+    return word_to_idx_dict
+
+
+def idx_to_word_dict_from_df(
+    df: DataFrame, word_col: str = "word", count_col: str = "count"
+) -> dict:
+    """Generates idx_to_word_dict dictionary from DataFrame.
+
+    Description
+    ----------
+    df is assumed not to contain <PAD> or <UNK>. These are
+    included in the output dict mapped to 0 and 1,
+    respectively. df is assumed to contain columns with the word
+    and count data representing the frequency of each word.  The
+    indices for all words in df are ordered by count.
+
+    Parameters
+    ----------
+    df : DataFrame
+        Dataframe holding char-idx mapping
+    word_col : str, default 'word'
+        Column in df holding to-be-tokenized text.
+    count_col : str, default 'count'
+        Column in df holding count data.
+
+    Returns
+    -------
+    dict
+        Dictionary with (idx, word) as (key, value) pairs.
+    """
+    df_count_sorted = df.sort_values(by=count_col, ascending=False)
+    words = df_count_sorted[word_col].values
+    words_and_idxs = zip(words, range(2, 2 + len(words)))
+    idx_to_word_dict = {idx: word for word, idx in words_and_idxs}
+    idx_to_word_dict[PAD_IDX] = "<PAD>"
+    idx_to_word_dict[UNK_IDX] = "<IDX>"
+    return idx_to_word_dict
 
 
 def embedding_cosine_heatmap(
     model: Module,
     words: Sequence[str],
-    word_to_idx: Dict[str, int],
+    word_to_idx_dict: Dict[str, int],
     title: Optional[str] = None,
 ) -> PltFigure:
     """Returns a heatmap of the cosines between vectors corresponding to words.
 
     Description
     ----------
-    Encoding performed using a word_to_idx dict mapping words to indices.
+    Encoding performed using a word_to_idx_dict dict mapping words to indices.
     <PAD> and <UNK> are expected to map to 0 and 1, respectively. model is
     assumed to use the same word-idx mappings for its embedding layer. model
     is also assumed to have a get_embedding_cosine(idx1, idx2) method for
@@ -154,7 +230,7 @@ def embedding_cosine_heatmap(
         Model used to compute cosines.
     words : list of strs
         List of words to be compared
-    word_to_idx : dict
+    word_to_idx_dict : dict
         Mapping from words to indices.
     title : str
         Optional plot title.
@@ -163,7 +239,7 @@ def embedding_cosine_heatmap(
     ----------
     Matplotlib Figure object.
     """
-    idxs = [word_to_idx[word] for word in words]
+    idxs = [word_to_idx_dict[word] for word in words]
     sorted_words_idxs = sorted(zip(words, idxs), key=lambda x: x[1])
     sorted_words, sorted_idxs = list(zip(*sorted_words_idxs))
 
@@ -194,14 +270,14 @@ def embedding_cosine_heatmap(
 
 
 def topk_cosines(
-    model: Module, words: Sequence[str], word_to_idx: Dict[str, int], k: int = 5
+    model: Module, words: Sequence[str], word_to_idx_dict: Dict[str, int], k: int = 5
 ) -> Tuple[Tensor, torch.LongTensor]:
     """Returns torch topk tensor for closest words to all words in `words`,
     as measured by cosine.
 
     Description
     ----------
-    Encoding performed using a word_to_idx dict mapping words to indices.
+    Encoding performed using a word_to_idx_dict dict mapping words to indices.
     <PAD> and <UNK> are expected to map to 0 and 1, respectively. model is
     assumed to use the same word-idx mappings for its embedding layer. model
     is also assumed to have a get_embedding_weights method for which returns
@@ -213,7 +289,7 @@ def topk_cosines(
         Model used to compute cosines.
     words : list of strs
         List of words to be compared
-    word_to_idx : dict
+    word_to_idx_dict : dict
         Mapping from words to indices.
     k : int, default 3
         k value for topk
@@ -222,7 +298,9 @@ def topk_cosines(
     ----------
     torch topk results, a named Tuple of tensors
     """
-    words_idx = torch.tensor([word_to_idx[word] for word in words], device=model.device)
+    words_idx = torch.tensor(
+        [word_to_idx_dict[word] for word in words], device=model.device
+    )
     embeddings = model.get_embedding_weights()
     embeddings_norms = (embeddings ** 2).sum(dim=-1).sqrt()[:, None]
     unit_embeddings = embeddings / embeddings_norms
@@ -236,14 +314,14 @@ def topk_cosines(
 
 
 def topk_cosines_vectors(
-    model: Module, words: Sequence[str], word_to_idx: Dict[str, int], k: int = 5
+    model: Module, words: Sequence[str], word_to_idx_dict: Dict[str, int], k: int = 5
 ) -> Tensor:
     """Returns topk vectors for closest words to all words in `words`,
     as measured by cosine.
 
     Description
     ----------
-    Encoding performed using a word_to_idx dict mapping words to indices.
+    Encoding performed using a word_to_idx_dict dict mapping words to indices.
     <PAD> and <UNK> are expected to map to 0 and 1, respectively. model is
     assumed to use the same word-idx mappings for its embedding layer. model
     is also assumed to have a get_embedding_weights method for which returns
@@ -258,7 +336,7 @@ def topk_cosines_vectors(
         Model used to compute cosines.
     words : list of strs
         List of words to be compared
-    word_to_idx : dict
+    word_to_idx_dict : dict
         Mapping from words to indices.
     k : int, default 3
         k value for topk
@@ -267,7 +345,7 @@ def topk_cosines_vectors(
     ----------
     Tensor
     """
-    topk_word_cosines = topk_cosines(model, words, word_to_idx, k)
+    topk_word_cosines = topk_cosines(model, words, word_to_idx_dict, k)
     topk_word_cosines_idxs = topk_word_cosines.indices
     embeddings = model.get_embedding_weights()
     topk_vectors = embeddings[topk_word_cosines_idxs]
@@ -277,8 +355,8 @@ def topk_cosines_vectors(
 def topk_cosines_df(
     model: Module,
     words: Sequence[str],
-    word_to_idx: Dict[str, int],
-    idx_to_word: Dict[int, str],
+    word_to_idx_dict: Dict[str, int],
+    idx_to_word_dict: Dict[int, str],
     k: int = 5,
 ) -> DataFrame:
     """Returns DataFrame containing data on the k-closest words for all elements of
@@ -286,8 +364,8 @@ def topk_cosines_df(
 
     Description
     ----------
-    Encoding performed using a word_to_idx dict mapping words to indices.
-    <PAD> and <UNK> are expected to map to 0 and 1, respectively. idx_to_word
+    Encoding performed using a word_to_idx_dict dict mapping words to indices.
+    <PAD> and <UNK> are expected to map to 0 and 1, respectively. idx_to_word_dict
     is the inverse mapping. model is assumed to use the same word-idx mappings
     for its embedding layer. model is also assumed to have a
     get_embedding_weights method for which returns the embedding matrix.
@@ -305,9 +383,9 @@ def topk_cosines_df(
         Model used to compute cosines.
     words : list of strs
         List of words to be compared.
-    word_to_idx : dict
+    word_to_idx_dict : dict
         Mapping from words to indices.
-    idx_to_word : dict
+    idx_to_word_dict : dict
         Mapping from indices to words.
     k : int, default 3
         k value for topk.
@@ -316,16 +394,16 @@ def topk_cosines_df(
     ----------
     DataFrame
     """
-    topk_word_cosines = topk_cosines(model, words, word_to_idx, k)
+    topk_word_cosines = topk_cosines(model, words, word_to_idx_dict, k)
     topk_word_cosines_idxs = topk_word_cosines.indices.cpu().numpy()
     topk_word_cosines_cos = topk_word_cosines.values.cpu().numpy()
 
-    def idx_to_word_fn(idx):
-        return idx_to_word[idx]
+    def idx_to_word_dict_fn(idx):
+        return idx_to_word_dict[idx]
 
-    idx_to_word_fn_vectorized = np.vectorize(idx_to_word_fn)
-    topk_words = idx_to_word_fn_vectorized(topk_word_cosines_idxs)
-    topk_seeds = idx_to_word_fn_vectorized(topk_word_cosines_idxs[:, 0])
+    idx_to_word_dict_fn_vectorized = np.vectorize(idx_to_word_dict_fn)
+    topk_words = idx_to_word_dict_fn_vectorized(topk_word_cosines_idxs)
+    topk_seeds = idx_to_word_dict_fn_vectorized(topk_word_cosines_idxs[:, 0])
 
     seed = np.concatenate([[word] * k for word in topk_seeds])
     word = np.concatenate(topk_words)
@@ -340,7 +418,7 @@ def topk_cosines_df(
 def topk_analogies(
     model: Module,
     analogy_str_seq: Sequence[str],
-    word_to_idx: Dict[str, int],
+    word_to_idx_dict: Dict[str, int],
     k: int = 5,
 ) -> Tuple[Tensor, torch.LongTensor]:
     """Returns topk results for the top-k words which best complete
@@ -353,7 +431,7 @@ def topk_analogies(
     word3 which has the largest cosine with the sum word1 - word0 + word2; see
     https://nlp.stanford.edu/pubs/glove.pdf page 6.
 
-    Encoding performed using a word_to_idx dict mapping words to indices.
+    Encoding performed using a word_to_idx_dict dict mapping words to indices.
     <PAD> and <UNK> are expected to map to 0 and 1, respectively. model is
     assumed to use the same word-idx mappings for its embedding layer. model
     is also assumed to have a get_embedding_weights method for which returns
@@ -366,7 +444,7 @@ def topk_analogies(
     analogy_str_seq : sequence of three strs
         Tuple, e.g., of the form (word0, word1, word2) for analogy
         word0 : word1 :: word2 : ???.
-    word_to_idx : dict
+    word_to_idx_dict : dict
         Mapping from words to indices.
     k : int, default 3
         k value for topk.
@@ -376,7 +454,7 @@ def topk_analogies(
     torch topk results, a named Tuple of tensors.
     """
     analogy_idxs = torch.tensor(
-        [word_to_idx[word] for word in analogy_str_seq], device=model.device
+        [word_to_idx_dict[word] for word in analogy_str_seq], device=model.device
     )
     embeddings = model.get_embedding_weights()
     embeddings_norms = (embeddings ** 2).sum(dim=-1).sqrt()[:, None]
@@ -400,8 +478,8 @@ def topk_analogies(
 def topk_analogies_df(
     model: Module,
     analogy_str_seq: Tuple[str, str, str],
-    word_to_idx: Dict[str, int],
-    idx_to_word: Dict[int, str],
+    word_to_idx_dict: Dict[str, int],
+    idx_to_word_dict: Dict[int, str],
     k: int = 5,
 ) -> DataFrame:
     """Returns DataFrame containing data on the top-k words which best
@@ -409,8 +487,8 @@ def topk_analogies_df(
 
     Description
     ----------
-    Encoding performed using a word_to_idx dict mapping words to indices.
-    <PAD> and <UNK> are expected to map to 0 and 1, respectively. idx_to_word
+    Encoding performed using a word_to_idx_dict dict mapping words to indices.
+    <PAD> and <UNK> are expected to map to 0 and 1, respectively. idx_to_word_dict
     is the inverse mapping. model is assumed to use the same word-idx mappings
     for its embedding layer. model is also assumed to have a
     get_embedding_weights method for which returns the embedding matrix.
@@ -431,9 +509,9 @@ def topk_analogies_df(
         Model used to compute cosines.
     analogy_str_seq : tuple of three strs
         Tuple (word0, word1, word2) for analogy word0 : word1 :: word2 : ???.
-    word_to_idx : dict
+    word_to_idx_dict : dict
         Mapping from words to indices.
-    idx_to_word : dict
+    idx_to_word_dict : dict
         Mapping from indices to words.
     k : int, default 3
         k value for topk.
@@ -443,15 +521,19 @@ def topk_analogies_df(
     DataFrame
     """
 
-    topk_analogy_results = topk_analogies(model, analogy_str_seq, word_to_idx, k + 3)
+    topk_analogy_results = topk_analogies(
+        model, analogy_str_seq, word_to_idx_dict, k + 3
+    )
     topk_analogy_results_idxs = topk_analogy_results.indices.cpu().numpy()
     topk_analogy_results_cos = topk_analogy_results.values.cpu().numpy()
 
-    def idx_to_word_fn(idx):
-        return idx_to_word[idx]
+    def idx_to_word_dict_fn(idx):
+        return idx_to_word_dict[idx]
 
-    idx_to_word_fn_vectorized = np.vectorize(idx_to_word_fn)
-    topk_analogy_results_words = idx_to_word_fn_vectorized(topk_analogy_results_idxs)
+    idx_to_word_dict_fn_vectorized = np.vectorize(idx_to_word_dict_fn)
+    topk_analogy_results_words = idx_to_word_dict_fn_vectorized(
+        topk_analogy_results_idxs
+    )
 
     words_idxs_cos_zip = zip(
         topk_analogy_results_words, topk_analogy_results_idxs, topk_analogy_results_cos
@@ -518,8 +600,8 @@ def px_word_df_3d(
 def pca_3d_embedding_plotter_topk(
     model: Module,
     words: Sequence[str],
-    word_to_idx: Dict[str, int],
-    idx_to_word: Dict[int, str],
+    word_to_idx_dict: Dict[str, int],
+    idx_to_word_dict: Dict[int, str],
     k: int = 5,
     title: Optional[str] = None,
     pca_args: Optional[Dict] = None,
@@ -532,7 +614,7 @@ def pca_3d_embedding_plotter_topk(
     ----------
     Plotly Figure object.
     """
-    topk_words_df = topk_cosines_df(model, words, word_to_idx, idx_to_word, k)
+    topk_words_df = topk_cosines_df(model, words, word_to_idx_dict, idx_to_word_dict, k)
     word_idx_array = np.array(topk_words_df["word_idx"])
     word_vectors = model.get_embedding_weights().cpu().numpy()[word_idx_array]
 
@@ -552,8 +634,8 @@ def pca_3d_embedding_plotter_topk(
 def tsne_3d_embedding_plotter_topk(
     model: Module,
     words: Sequence[str],
-    word_to_idx: Dict[str, int],
-    idx_to_word: Dict[int, str],
+    word_to_idx_dict: Dict[str, int],
+    idx_to_word_dict: Dict[int, str],
     k: int = 5,
     title: Optional[str] = None,
     tsne_args: Optional[Dict] = None,
@@ -566,7 +648,7 @@ def tsne_3d_embedding_plotter_topk(
     ----------
     Plotly Figure object.
     """
-    topk_words_df = topk_cosines_df(model, words, word_to_idx, idx_to_word, k)
+    topk_words_df = topk_cosines_df(model, words, word_to_idx_dict, idx_to_word_dict, k)
     word_idx_array = np.array(topk_words_df["word_idx"])
     word_vectors = model.get_embedding_weights().cpu().numpy()[word_idx_array]
 

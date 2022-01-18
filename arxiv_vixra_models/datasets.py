@@ -1,16 +1,14 @@
-from collections import defaultdict
 from copy import deepcopy
 from typing import Tuple, Optional, Union, Dict
 import warnings
 
-import numpy as np
 from pandas import DataFrame
 import torch
 from torch import Tensor
 from torch.utils.data import Dataset
 
-from .embedding_utils import str_to_idxs
-from .one_hot_utils import str_to_one_hot
+from .embedding_utils import str_to_idxs, word_to_idx_dict_from_df
+from .one_hot_utils import str_to_one_hot, char_to_idx_dict_from_df
 
 PAD_IDX = 0
 UNK_IDX = 1
@@ -68,7 +66,7 @@ class OneHotCharDatasetAV(Dataset):
         # Important to copy, otherwise data input is modified.
         self.text_df = deepcopy(text_df)
         self.tokens_df = deepcopy(tokens_df)
-        self._char_to_idx = dict(zip(self.tokens_df["char"], self.tokens_df["idx"]))
+        self._char_to_idx_dict = char_to_idx_dict_from_df(self.tokens_df)
 
         if sample_size is not None:
             if isinstance(sample_size, float):
@@ -94,7 +92,7 @@ class OneHotCharDatasetAV(Dataset):
 
     def _str_to_one_hot(self, s: str) -> Tensor:
         return str_to_one_hot(
-            s, self._char_to_idx, self.seq_len, self.check_normalization
+            s, self._char_to_idx_dict, self.seq_len, self.check_normalization
         )
 
     def __len__(self) -> int:
@@ -149,23 +147,21 @@ class OneHotCharDatasetNextLM(Dataset):
         self.text = text
         self.seq_len = seq_len
         self.tokens_df = deepcopy(tokens_df)
-        self._char_to_idx = defaultdict(
-            lambda: BLANK_IDX, zip(self.tokens_df["char"], self.tokens_df["idx"])
-        )
+        self._char_to_idx_dict = char_to_idx_dict_from_df(self.tokens_df)
         self.check_normalization = check_normalization
         self.strip_before_normalization_check = strip_before_normalization_check
 
     def _str_to_one_hot(self, s: str) -> Tensor:
         return str_to_one_hot(
             s=s,
-            char_to_idx=self._char_to_idx,
+            char_to_idx_dict=self._char_to_idx_dict,
             seq_len=self.seq_len,
             check_normalization=self.check_normalization,
             strip_before_normalization_check=self.strip_before_normalization_check,
         )
 
     def _get_classes_tensor(self, s: str) -> Tensor:
-        classes = [self._char_to_idx[ch] for ch in s]
+        classes = [self._char_to_idx_dict[ch] for ch in s]
         classes_t = torch.tensor(classes)
         return classes_t
 
@@ -255,11 +251,7 @@ class EmbeddingDatasetAV(Dataset):
 
         # Create dictionary from tokens. Start from 2, accounting for padding and
         # unknown maps at 0 and 1.
-        self._word_to_idx = dict(
-            zip(self.tokens_df["word"], np.arange(2, len(self.tokens_df) + 2))
-        )
-        self._word_to_idx["<PAD>"] = PAD_IDX
-        self._word_to_idx["<UNK>"] = UNK_IDX
+        self._word_to_idx_dict = word_to_idx_dict_from_df(self.tokens_df)
 
         if sample_size is not None:
             if isinstance(sample_size, float):
@@ -281,7 +273,9 @@ class EmbeddingDatasetAV(Dataset):
         raise ValueError("Source string must either be arxiv or vixra, invalid data.")
 
     def _str_to_idxs(self, s: str) -> Tensor:
-        return str_to_idxs(s, self._word_to_idx, self.seq_len, self.check_normalization)
+        return str_to_idxs(
+            s, self._word_to_idx_dict, self.seq_len, self.check_normalization
+        )
 
     def __len__(self) -> int:
         return len(self.text_df)
@@ -360,24 +354,19 @@ class EmbeddingDatasetNextLM(Dataset):
 
         # Create dictionary from tokens. Start from 2, accounting for
         # padding and unknown maps at 0 and 1.
-        self._word_to_idx = defaultdict(
-            lambda: UNK_IDX,
-            zip(self.tokens_df["word"], np.arange(2, len(self.tokens_df) + 2)),
-        )
-        self._word_to_idx["<PAD>"] = PAD_IDX
-        self._word_to_idx["<UNK>"] = UNK_IDX
+        self._word_to_idx_dict = word_to_idx_dict_from_df(self.tokens_df)
 
     def _str_to_idxs(self, s: str) -> Tensor:
         return str_to_idxs(
             s=s,
-            word_to_idx=self._word_to_idx,
+            word_to_idx_dict=self._word_to_idx_dict,
             seq_len=self.seq_len,
             check_normalization=self.check_normalization,
             strip_before_normalization_check=self.strip_before_normalization_check,
         )
 
     def _get_classes_tensor(self, s: str) -> Tensor:
-        classes = [self._word_to_idx[w] for w in s.split()]
+        classes = [self._word_to_idx_dict[w] for w in s.split()]
         classes_t = torch.tensor(classes)
         return classes_t
 
@@ -439,17 +428,17 @@ class CoMatrixDataset(Dataset):
     Description
     ----------
 
-    Encoding performed using a word_to_idx dict mapping words to indices.
+    Encoding performed using a word_to_idx_dict dict mapping words to indices.
     <PAD> and <UNK> are expected to map to 0 and 1, respectively.
     Text is expected to have been passed through text_normalizer first.
-    Text normalization and proper mapping via word_to_idx can be verified
+    Text normalization and proper mapping via word_to_idx_dict can be verified
     through the check_normalization flag.
 
     Parameters
     ----------
     text : str
         Text to to be embedded
-    word_to_idx : dict
+    word_to_idx_dict : dict
         Mapping from words to indices.
     context_window : int, default 2
         Width of the context window used on either side of the center word.
@@ -466,7 +455,7 @@ class CoMatrixDataset(Dataset):
     def __init__(
         self,
         text: str,
-        word_to_idx: Dict[str, int],
+        word_to_idx_dict: Dict[str, int],
         context_window: int = 2,
         include_center_in_context: bool = False,
     ) -> None:
@@ -476,7 +465,7 @@ class CoMatrixDataset(Dataset):
         # is about twice as fast as generating a large Tensor first and
         # slicing and concatenating it down.
         self._encoded_text = [
-            word_to_idx.get(word, UNK_IDX) for word in text.strip().split()
+            word_to_idx_dict.get(word, UNK_IDX) for word in text.strip().split()
         ]
         print("...done!")
         self.context_window = context_window
