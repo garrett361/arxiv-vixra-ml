@@ -254,7 +254,7 @@ class LitGloVe(pl.LightningModule):
         """Save state_dict and non-ignored __init__ parameters
         logged to self.hparams to wandb.
         """
-        model_file_name = f"glove_dim_{self.hparams['embedding_dim']}.pt"
+        model_file_name = "glove.pt"
         torch.save(self.state_dict(), model_file_name)
         wandb.save(model_file_name)
 
