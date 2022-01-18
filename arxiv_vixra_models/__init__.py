@@ -18,8 +18,8 @@ from .embedding_utils import (
     tsne_3d_embedding_plotter_topk,
 )
 from .glove import CoMatrixBuilder, LitGloVe
-from .language_models import LitEmbeddingRNNNextLM, LitOneHotCharRNNNextLM
 from .one_hot_utils import one_hot_to_str, str_to_one_hot
+from .simple_language_models import LitEmbeddingRNNNextLM, LitOneHotCharRNNNextLM
 from .simple_recurrent import LitEmbeddingRNNAV, LitOneHotCharRNNAV
 from .text_normalizer import text_normalizer
 
