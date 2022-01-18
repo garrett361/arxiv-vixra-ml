@@ -1,5 +1,5 @@
 from copy import deepcopy
-import json
+
 from typing import Dict, Tuple, Sequence, Optional, Union
 from typing_extensions import Literal
 import warnings
@@ -256,28 +256,21 @@ class LitRNNLoggingBaseAV(pl.LightningModule):
             self.save_best_model(metric="val_loss")
 
     def save_best_model(self, metric: str) -> None:
-        """Save best models (state_dict) by metric to .pt format."""
-        model_name = "model_best_" + metric
-        model_json_name = model_name + "_hparam_dict.json"
-        model_state_dict_name = model_name + ".pt"
-        model_dict = {
-            **{
-                "val_loss": self._curr_val_loss.item(),
-                "val_acc": self._curr_val_acc.item(),
-            },
-            **self.hparams,
-        }
-        model_dict_json = json.dumps(model_dict)
-        with open(model_json_name, "w") as outfile:
-            outfile.write(model_dict_json)
-        wandb.save(model_json_name)
-        torch.save(self.state_dict(), model_state_dict_name)
-        wandb.save(model_state_dict_name)
+        """Save state_dict and non-ignored __init__ parameters
+        logged to self.hparams to wandb.
+        """
+        model_file_name = "model_best_" + metric + ".pt"
+        torch.save(self.state_dict(), model_file_name)
+        wandb.save(model_file_name)
+
+        model_init_params_file_name = "model_init_params.pt"
+        torch.save(self.hparams, model_init_params_file_name)
+        wandb.save(model_init_params_file_name)
 
         print(
             f"Saved best {metric} at global step: {self.global_step}",
             f"Epoch: {self.current_epoch}",
-            f"Validation accuracy: {self.val_metrics_dict['val_acc'].compute().item()}",
+            f"Validation accuracy: {self.val_metrics_dict[metric].compute().item()}",
             f"Validation Loss: {self._curr_val_loss.item()}",
             sep="\n",
         )
@@ -426,11 +419,8 @@ class LitOneHotCharRNNAV(LitRNNLoggingBaseAV):
             lr_scheduler_monitor=lr_scheduler_monitor,
             save_models_to_wandb=save_models_to_wandb,
         )
-
-        # Logging hyperparameters to the hparams attr of the class (pl feature)
-        # saves all args of __init__ to self.hparam.  So, can get the lr via
-        # self.hparams['lr'], for instance.
-        self.save_hyperparameters(ignore="tokens")
+        # Save __init__ parameters to hparam dict attr.
+        self.save_hyperparameters()
 
         if isinstance(tokens, str):
             self.tokens_df = pd.read_feather(tokens)
@@ -621,11 +611,8 @@ class LitEmbeddingRNNAV(LitRNNLoggingBaseAV):
             lr_scheduler_monitor=lr_scheduler_monitor,
             save_models_to_wandb=save_models_to_wandb,
         )
-
-        # Logging hyperparameters to the hparams attr of the class (pl feature)
-        # saves all args of __init__ to self.hparam.  So, can get the lr via
-        # self.hparams['lr'], for instance.
-        self.save_hyperparameters(ignore=("tokens", "embedding_from_pretrained"))
+        # Save __init__ parameters to hparam dict attr.
+        self.save_hyperparameters()
         PAD_IDX = 0
 
         # Get num_embeddings from tokens

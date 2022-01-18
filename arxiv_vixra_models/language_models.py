@@ -220,10 +220,8 @@ class LitOneHotCharRNNNextLM(LitRNNLoggingBaseLM):
             lr_scheduler_monitor=lr_scheduler_monitor,
             save_models_to_wandb=save_models_to_wandb,
         )
-        # Logging hyperparameters to the hparams attr of the class (pl feature)
-        # saves all args of __init__ to self.hparam.  So, can get the lr via
-        # self.hparams['lr'], for instance.
-        self.save_hyperparameters(ignore="tokens")
+        # Save __init__ parameters to hparam dict attr.
+        self.save_hyperparameters()
         if truncated_bptt_steps is not None:
             self.truncated_bptt_steps = truncated_bptt_steps
 
@@ -404,11 +402,8 @@ class LitEmbeddingRNNNextLM(LitRNNLoggingBaseLM):
             lr_scheduler_interval=lr_scheduler_interval,
             lr_scheduler_monitor=lr_scheduler_monitor,
         )
-
-        # Logging hyperparameters to the hparams attr of the class (pl feature)
-        # saves all args of __init__ to self.hparam.  So, can get the lr via
-        # self.hparams['lr'], for instance.
-        self.save_hyperparameters(ignore=("tokens", "embedding_from_pretrained"))
+        # Save __init__ parameters to hparam dict attr.
+        self.save_hyperparameters()
         if truncated_bptt_steps is not None:
             self.truncated_bptt_steps = truncated_bptt_steps
         PAD_IDX = 0

@@ -1,4 +1,3 @@
-import json
 from time import perf_counter
 from typing import Dict, Tuple, Union, Optional
 from typing_extensions import Literal
@@ -103,18 +102,8 @@ class LitGloVe(pl.LightningModule):
         **logging_kwargs: Dict[str, Union[float, int, str]],
     ) -> None:
         super().__init__()
-        # Logging hyperparameters to the hparams attr of the class (pl feature).
-        # saves all args of __init__ to self.hparam.
-        self.save_hyperparameters(
-            ignore=(
-                "tokens",
-                "co_matrix",
-                "pretrained_word_embedding",
-                "pretrained_context_embedding",
-                "pretrained_word_bias",
-                "pretrained_context_bias",
-            )
-        )
+        # Save __init__ parameters to hparam dict attr.
+        self.save_hyperparameters()
         self.co_matrix = co_matrix
         # Key off of loss when saving models.
         self.best_loss = float("inf")
@@ -224,7 +213,7 @@ class LitGloVe(pl.LightningModule):
 
     def train_dataloader(self):
         dataset = GloVeDataset(co_matrix=self.co_matrix)
-        loader = torch.utils.data.DataLoader(
+        loader = DataLoader(
             dataset=dataset,
             batch_size=self.hparams["batch_size"],
             shuffle=True,
@@ -262,17 +251,16 @@ class LitGloVe(pl.LightningModule):
             self.log(name, metric, prog_bar=True)
 
     def save_best_model(self) -> None:
-        """Save state_dict to wandb."""
-        model_name = f"glove_dim_{self.hparams['embedding_dim']}"
-        model_json_name = model_name + "_hparam_dict.json"
-        model_state_dict_name = model_name + ".pt"
-        model_dict = {**{"loss": self.best_loss.item()}, **self.hparams}
-        model_dict_json = json.dumps(model_dict)
-        with open(model_json_name, "w") as outfile:
-            outfile.write(model_dict_json)
-        wandb.save(model_json_name)
-        torch.save(self.state_dict(), model_state_dict_name)
-        wandb.save(model_state_dict_name)
+        """Save state_dict and non-ignored __init__ parameters
+        logged to self.hparams to wandb.
+        """
+        model_file_name = f"glove_dim_{self.hparams['embedding_dim']}.pt"
+        torch.save(self.state_dict(), model_file_name)
+        wandb.save(model_file_name)
+
+        model_init_params_file_name = "model_init_params.pt"
+        torch.save(self.hparams, model_init_params_file_name)
+        wandb.save(model_init_params_file_name)
 
         print(
             f"Saved at global step: {self.global_step}",
