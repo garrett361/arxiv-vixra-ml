@@ -4,7 +4,7 @@ from typing import Tuple, Optional, Dict, Sequence
 import numpy as np
 from matplotlib.figure import Figure as PltFigure
 import matplotlib.pyplot as plt
-import pandas as pd
+from pandas import DataFrame
 import plotly.express as px
 from plotly.graph_objects import Figure as PlotlyFigure
 import seaborn as sns
@@ -174,7 +174,7 @@ def embedding_cosine_heatmap(
         ]
 
     cos_dict = {word: idx_cosines(idx) for word, idx in sorted_words_idxs}
-    cos_df = pd.DataFrame(cos_dict, index=sorted_words)
+    cos_df = DataFrame(cos_dict, index=sorted_words)
     sns.set(font_scale=1.5)
     _, ax = plt.subplots(figsize=(12, 10))
     sns.heatmap(
@@ -280,8 +280,8 @@ def topk_cosines_df(
     word_to_idx: Dict[str, int],
     idx_to_word: Dict[int, str],
     k: int = 5,
-) -> pd.DataFrame:
-    """Returns pd.DataFrame containing data on the k-closest words for all elements of
+) -> DataFrame:
+    """Returns DataFrame containing data on the k-closest words for all elements of
     `words`, as measured by cosine.
 
     Description
@@ -292,7 +292,7 @@ def topk_cosines_df(
     for its embedding layer. model is also assumed to have a
     get_embedding_weights method for which returns the embedding matrix.
 
-    The returned pd.DataFrame has the following columns:
+    The returned DataFrame has the following columns:
         -'seed': contains words provided in `words`.
         -'word': contains instances of words close to 'seed' entry.
         -'idx': the idx of the 'word' column entry.
@@ -314,7 +314,7 @@ def topk_cosines_df(
 
     Returns
     ----------
-    pd.DataFrame
+    DataFrame
     """
     topk_word_cosines = topk_cosines(model, words, word_to_idx, k)
     topk_word_cosines_idxs = topk_word_cosines.indices.cpu().numpy()
@@ -333,7 +333,7 @@ def topk_cosines_df(
     cos = np.concatenate(topk_word_cosines_cos)
 
     topk_dict = {"seed": seed, "word": word, "word_idx": word_idx, "cos": cos}
-    topk_df = pd.DataFrame(topk_dict)
+    topk_df = DataFrame(topk_dict)
     return topk_df
 
 
@@ -403,8 +403,8 @@ def topk_analogies_df(
     word_to_idx: Dict[str, int],
     idx_to_word: Dict[int, str],
     k: int = 5,
-) -> pd.DataFrame:
-    """Returns pd.DataFrame containing data on the top-k words which best
+) -> DataFrame:
+    """Returns DataFrame containing data on the top-k words which best
     complete the analogy word0 : word1 :: word2 : ???.
 
     Description
@@ -415,7 +415,7 @@ def topk_analogies_df(
     for its embedding layer. model is also assumed to have a
     get_embedding_weights method for which returns the embedding matrix.
 
-    The returned pd.DataFrame has the following columns:
+    The returned DataFrame has the following columns:
         -'word0': First word in the analogy.
         -'word1': Second word in the analogy.
         -'word2': Third word in the analogy.
@@ -440,7 +440,7 @@ def topk_analogies_df(
 
     Returns
     ----------
-    pd.DataFrame
+    DataFrame
     """
 
     topk_analogy_results = topk_analogies(model, analogy_str_seq, word_to_idx, k + 3)
@@ -473,12 +473,12 @@ def topk_analogies_df(
         "word3_idx": filtered_idxs,
         "cos": filtered_cos,
     }
-    topk_df = pd.DataFrame(topk_dict)
+    topk_df = DataFrame(topk_dict)
     return topk_df
 
 
 def px_word_df_3d(
-    df: pd.DataFrame,
+    df: DataFrame,
     x: str = "x",
     y: str = "y",
     z: str = "z",
@@ -493,7 +493,7 @@ def px_word_df_3d(
 
     Description
     ----------
-    pd.DataFrame is expected to have x, y, z data in similarly named columns.
+    DataFrame is expected to have x, y, z data in similarly named columns.
     The 'seed' and 'cos' columns are used to determine markers.
 
     Returns

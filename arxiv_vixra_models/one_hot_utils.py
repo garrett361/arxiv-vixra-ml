@@ -1,12 +1,11 @@
 from typing import Dict, Optional
 
+from pandas import DataFrame
 import torch
 from torch import Tensor
 
 from .text_normalizer import text_normalizer
 
-PAD_IDX = 0
-UNK_IDX = 1
 BLANK_IDX = 0
 
 
@@ -25,8 +24,7 @@ def str_to_one_hot(
     encoded text.  Optionally force text to be seq_len long. Spaces (used for
     padding) and unknown characters are both mapped to a vector pointing in the
     0-direction. Text is expected to have been passed through text_normalizer
-    first and char_to_idx should map a blank space to zero.  Resulting shape is
-    (seq_len, len(char_to_idx)).
+    first.  Resulting shape is (seq_len, len(char_to_idx)).
 
     Parameters
     ----------
@@ -37,7 +35,7 @@ def str_to_one_hot(
     seq_len : int or None, default 'None'
         Force text to be of length seq_len, if not None.
     check_normalization : bool, default False
-        Verify the text and char_to_idx mapping are of the proper formats.
+        Verify the text was normalized as expected.
     strip_before_normalization_check : bool, default False
         Flag for whether to strip text before performing normalization check.
 
@@ -51,10 +49,6 @@ def str_to_one_hot(
         assert s_check == text_normalizer(
             s_check
         ), "String not normalized as expected, apply text_normalizer first."
-        blank_check = char_to_idx.get(" ", None)
-        assert (
-            blank_check == BLANK_IDX
-        ), "char_to_idx expected to map blank space to 0, not {blank_check}."
 
     input_size = len(char_to_idx)
     s_len = len(s)
@@ -71,9 +65,7 @@ def str_to_one_hot(
     return s_tensor
 
 
-def one_hot_to_str(
-    tensor: Tensor, idx_to_char: Dict[int, str], check_normalization: bool = False
-) -> str:
+def one_hot_to_str(tensor: Tensor, idx_to_char: Dict[int, str]) -> str:
     """Decode a one-hot-encoded tensor.
 
     Description
@@ -88,18 +80,81 @@ def one_hot_to_str(
         Text to to be embedded
     idx_to_char : dict
         Mapping from chars to indices.
-    check_normalization : bool, default False
-        Verify the idx_to_char mapping has the proper form.
 
     Returns
     ----------
     text : str
         Decoded string.
     """
-    if check_normalization:
-        blank_check = idx_to_char.get(BLANK_IDX, None)
-        assert (
-            blank_check == " "
-        ), f"{BLANK_IDX} should map to ' ', not {blank_check}, in idx_to_char."
     text = "".join(idx_to_char.get(c.argmax().item(), "<UNK>") for c in tensor)
     return text
+
+
+def char_to_idx_from_df(
+    df: DataFrame,
+    char_col: str = "char",
+    idx_col: str = "idx",
+    check_normalization=True,
+) -> dict:
+    """Generates char_to_idx dictionary from DataFrame.
+
+    Parameters
+    ----------
+    df : DataFrame
+        Dataframe holding char-idx mapping
+    char_col : str, optional
+        Column in df holding characters.
+    idx_col : str, optional
+        Column in df holding indices.
+    check_normalization : bool, default True
+        Verify that blank space maps to zero.
+
+    Returns
+    -------
+    dict
+        Dictionary with (char, idx) as (key, value) pairs.
+    """
+    char_to_idx = {}
+    for _, row in df.iterrows():
+        char_to_idx[row[char_col]] = row[idx_col]
+    if check_normalization:
+        blank_check = char_to_idx[" "]
+        assert (
+            blank_check == BLANK_IDX
+        ), f"Blank space expected to map to {BLANK_IDX}, not {blank_check}."
+    return char_to_idx
+
+
+def idx_to_char_from_df(
+    df: DataFrame,
+    char_col: str = "char",
+    idx_col: str = "idx",
+    check_normalization=True,
+) -> dict:
+    """Generates idx_to_char dictionary from DataFrame.
+
+    Parameters
+    ----------
+    df : DataFrame
+        Dataframe holding char-idx mapping
+    char_col : str, optional
+        Column in df holding characters.
+    idx_col : str, optional
+        Column in df holding indices.
+    check_normalization : bool, default True
+        Verify that zero space maps to blank space.
+
+    Returns
+    -------
+    dict
+        Dictionary with (idx, char) as (key, value) pairs.
+    """
+    idx_to_char = {}
+    for _, row in df.iterrows():
+        idx_to_char[row[idx_col]] = row[char_col]
+    if check_normalization:
+        blank_check = idx_to_char[0]
+        assert (
+            blank_check == BLANK_IDX
+        ), f"0 expected to map to blank space, not {blank_check}."
+    return idx_to_char

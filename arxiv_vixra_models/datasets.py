@@ -4,7 +4,7 @@ from typing import Tuple, Optional, Union, Dict
 import warnings
 
 import numpy as np
-import pandas as pd
+from pandas import DataFrame
 import torch
 from torch import Tensor
 from torch.utils.data import Dataset
@@ -23,18 +23,18 @@ class OneHotCharDatasetAV(Dataset):
 
     Description
     ----------
-    Assumes each row in the data feather file has 'source' column which
-    is either 'arxiv' or 'vixra'. Uses `tokens` to map characters to
-    integers.
+    Assumes each row in text_df has 'source' column which
+    is either 'arxiv' or 'vixra'. Uses `tokens_df` to map characters to
+    indices.
 
     Parameters
     ----------
-    data : str or pd.DataFrame
-        DataFrame object or path to data feather file.
-    tokens : str or pd.DataFrame
-        DataFrame object or path to character feather file.
+    text_df : DataFrame
+        DataFrame containing text.
+    tokens_df : DataFrame
+        DataFrame containing 'char' and 'idx' columns for one-hot encoding.
     text_column : str
-        Column in data feather file containing text, e.g. `'title'`.
+        Column text DataFrames containing  desired text, e.g. `'title'`.
     seq_len : int
         Sequence length used for processing text.
     sample_size : int or float, optional
@@ -54,8 +54,8 @@ class OneHotCharDatasetAV(Dataset):
 
     def __init__(
         self,
-        data: Union[str, pd.DataFrame],
-        tokens: Union[str, pd.DataFrame],
+        text_df: DataFrame,
+        tokens_df: DataFrame,
         text_column: str,
         seq_len: int,
         sample_size: Optional[Union[int, float]] = None,
@@ -65,27 +65,25 @@ class OneHotCharDatasetAV(Dataset):
         self.text_column = text_column
         self.seq_len = seq_len
 
-        if isinstance(data, str):
-            self.data = pd.read_feather(data, columns=[text_column, "source"])
-        else:
-            # Important to copy, otherwise data input is modified.
-            self.data = deepcopy(data)
-        if isinstance(tokens, str):
-            self.tokens_df = pd.read_feather(tokens)
-        else:
-            self.tokens_df = deepcopy(tokens)
+        # Important to copy, otherwise data input is modified.
+        self.text_df = deepcopy(text_df)
+        self.tokens_df = deepcopy(tokens_df)
         self._char_to_idx = dict(zip(self.tokens_df["char"], self.tokens_df["idx"]))
 
         if sample_size is not None:
             if isinstance(sample_size, float):
-                self.data = self.data.sample(frac=sample_size)
+                self.text_df = self.text_df.sample(frac=sample_size)
             if isinstance(sample_size, int):
-                self.data = self.data.sample(sample_size)
+                self.text_df = self.text_df.sample(sample_size)
         self.check_normalization = check_normalization
 
         # Perform one-hot encoding and encoding the source for arxiv/vixra.
-        self.data["source"] = self.data["source"].apply(self._arxiv_vixra_encoding)
-        self.data[text_column] = self.data[text_column].apply(self._str_to_one_hot)
+        self.text_df["source"] = self.text_df["source"].apply(
+            self._arxiv_vixra_encoding
+        )
+        self.text_df[text_column] = self.text_df[text_column].apply(
+            self._str_to_one_hot
+        )
 
     def _arxiv_vixra_encoding(self, s: str) -> Tensor:
         if s == "vixra":
@@ -100,11 +98,11 @@ class OneHotCharDatasetAV(Dataset):
         )
 
     def __len__(self) -> int:
-        return len(self.data)
+        return len(self.text_df)
 
     def __getitem__(self, idx: int) -> Tuple[Tensor, Tensor]:
-        source = self.data.iloc[idx].loc["source"]
-        one_hot_text = self.data.iloc[idx].loc[self.text_column]
+        source = self.text_df.iloc[idx].loc["source"]
+        one_hot_text = self.text_df.iloc[idx].loc[self.text_column]
 
         return one_hot_text, source
 
@@ -121,8 +119,8 @@ class OneHotCharDatasetNextLM(Dataset):
     ----------
     text : str
         Training text.
-    tokens : str or pd.DataFrame
-        DataFrame object or path to character feather file.
+    tokens_df : DataFrame
+        DataFrame containing 'char' and 'idx' columns for one-hot encoding.
     seq_len : int
         Sequence length used for processing text.
     check_normalization : bool, default True
@@ -142,7 +140,7 @@ class OneHotCharDatasetNextLM(Dataset):
     def __init__(
         self,
         text: str,
-        tokens: Union[str, pd.DataFrame],
+        tokens_df: DataFrame,
         seq_len: int,
         check_normalization: bool = True,
         strip_before_normalization_check: bool = True,
@@ -150,10 +148,7 @@ class OneHotCharDatasetNextLM(Dataset):
         super().__init__()
         self.text = text
         self.seq_len = seq_len
-        if isinstance(tokens, str):
-            self.tokens_df = pd.read_feather(tokens)
-        else:
-            self.tokens_df = deepcopy(tokens)
+        self.tokens_df = deepcopy(tokens_df)
         self._char_to_idx = defaultdict(
             lambda: BLANK_IDX, zip(self.tokens_df["char"], self.tokens_df["idx"])
         )
@@ -194,24 +189,23 @@ class EmbeddingDatasetAV(Dataset):
     Description
     ----------
 
-    Assumes each row in the data feather file has 'source' column which
-    is either 'arxiv' or 'vixra' and that a separate feather file mapping words
-    to integers exists. Outputs integer-encoded words. tokens DataFrame
-    (or associated feather file) is expected to have a 'count' column tallying
+    Assumes each row in text_df has 'source' column which
+    is either 'arxiv' or 'vixra'. Outputs integer-encoded words. tokens_df DataFrame
+    is expected to have a 'count' column tallying
     the number of times each word appeared in the training set and words to be
     sorted in descending order by count. Padding and <UNK> are assumed *not* to
     be in tokens.
 
     Parameters
     ----------
-    data : str or pd.DataFrame
-        DataFrame object or path to data feather file.
-    tokens : str or pd.DataFrame
-        DataFrame object or path to vocabulary feather file.
+    text_df : DataFrame
+        DataFrame containing text.
+    tokens_df : DataFrame
+        Token counts data stored in 'word' and 'count' columns.
     min_word_count : int, default 1
-        Minimum count for a word in tokens to be included in the vocabulary.
+        Minimum count for a word in tokens_df to be included in the vocabulary.
     text_column : str
-        Column in data feather file containing text, e.g. `'title'`.
+        Column text DataFrames containing  desired text, e.g. `'title'`.
     seq_len : int
         Sequence length used for processing text.
     sample_size : int or float, optional
@@ -231,8 +225,8 @@ class EmbeddingDatasetAV(Dataset):
 
     def __init__(
         self,
-        data: Union[str, pd.DataFrame],
-        tokens: Union[str, pd.DataFrame],
+        text_df: DataFrame,
+        tokens_df: DataFrame,
         text_column: str,
         seq_len: int,
         min_word_count: int = 1,
@@ -246,15 +240,9 @@ class EmbeddingDatasetAV(Dataset):
         self.sample_size = sample_size
         self.check_normalization = check_normalization
 
-        if isinstance(data, str):
-            self.data = pd.read_feather(data, columns=[text_column, "source"])
-        else:
-            # Important to copy, otherwise data input is modified.
-            self.data = deepcopy(data)
-        if isinstance(tokens, str):
-            self.tokens_df = pd.read_feather(tokens)
-        else:
-            self.tokens_df = deepcopy(tokens)
+        # Important to copy, otherwise data input is modified.
+        self.text_df = deepcopy(text_df)
+        self.tokens_df = deepcopy(tokens_df)
         if min_word_count > 1:
             if "count" in self.tokens_df:
                 self.tokens_df = self.tokens_df[
@@ -262,7 +250,7 @@ class EmbeddingDatasetAV(Dataset):
                 ]
             else:
                 warnings.warn(
-                    "count column does not exist in tokens DataFrame, min_word_count arg ignored."
+                    "count column does not exist in tokens_df DataFrame, min_word_count arg ignored."
                 )
 
         # Create dictionary from tokens. Start from 2, accounting for padding and
@@ -275,13 +263,15 @@ class EmbeddingDatasetAV(Dataset):
 
         if sample_size is not None:
             if isinstance(sample_size, float):
-                self.data = self.data.sample(frac=sample_size)
+                self.text_df = self.text_df.sample(frac=sample_size)
             if isinstance(sample_size, int):
-                self.data = self.data.sample(sample_size)
+                self.text_df = self.text_df.sample(sample_size)
 
         # Perform embedding and encoding the source for arxiv/vixra.
-        self.data["source"] = self.data["source"].apply(self._arxiv_vixra_encoding)
-        self.data[text_column] = self.data[text_column].apply(self._str_to_idxs)
+        self.text_df["source"] = self.text_df["source"].apply(
+            self._arxiv_vixra_encoding
+        )
+        self.text_df[text_column] = self.text_df[text_column].apply(self._str_to_idxs)
 
     def _arxiv_vixra_encoding(self, s: str) -> Tensor:
         if s == "vixra":
@@ -294,11 +284,11 @@ class EmbeddingDatasetAV(Dataset):
         return str_to_idxs(s, self._word_to_idx, self.seq_len, self.check_normalization)
 
     def __len__(self) -> int:
-        return len(self.data)
+        return len(self.text_df)
 
     def __getitem__(self, idx: int) -> Tuple[Tensor, Tensor]:
-        source = self.data.iloc[idx].loc["source"]
-        tokenized_text = self.data.iloc[idx].loc[self.text_column]
+        source = self.text_df.iloc[idx].loc["source"]
+        tokenized_text = self.text_df.iloc[idx].loc[self.text_column]
 
         return tokenized_text, source
 
@@ -310,10 +300,10 @@ class EmbeddingDatasetNextLM(Dataset):
     Description
     ----------
 
-    Assumes each row in the data feather file has 'source' column which
+    Assumes each row in text_df has 'source' column which
     is either 'arxiv' or 'vixra' and that a separate feather file mapping words
-    to integers exists. Outputs integer-encoded words. tokens DataFrame
-    (or associated feather file) is expected to have a 'count' column tallying
+    to integers exists. Outputs integer-encoded words. tokens_df DataFrame
+    is expected to have a 'count' column tallying
     the number of times each word appeared in the training set and words to be
     sorted in descending order by count. Padding and <UNK> are assumed *not* to
     be in tokens.
@@ -322,10 +312,10 @@ class EmbeddingDatasetNextLM(Dataset):
     ----------
     text : str
         Training text.
-    tokens : str or pd.DataFrame
-        DataFrame object or path to vocabulary feather file.
+    tokens_df : DataFrame
+        Token counts data stored in 'word' and 'count' columns.
     min_word_count : int, default 1
-        Minimum count for a word in tokens to be included in the vocabulary.
+        Minimum count for a word in tokens_df to be included in the vocabulary.
     seq_len : int
         Sequence length used for processing text.
     check_normalization : bool, default True
@@ -345,7 +335,7 @@ class EmbeddingDatasetNextLM(Dataset):
     def __init__(
         self,
         text: str,
-        tokens: Union[str, pd.DataFrame],
+        tokens_df: DataFrame,
         seq_len: int,
         min_word_count: int = 1,
         check_normalization: bool = True,
@@ -359,10 +349,7 @@ class EmbeddingDatasetNextLM(Dataset):
         self.check_normalization = check_normalization
         self.strip_before_normalization_check = strip_before_normalization_check
 
-        if isinstance(tokens, str):
-            self.tokens_df = pd.read_feather(tokens)
-        else:
-            self.tokens_df = deepcopy(tokens)
+        self.tokens_df = deepcopy(tokens_df)
         if min_word_count > 1:
             if "count" in self.tokens_df:
                 self.tokens_df = self.tokens_df[
@@ -370,7 +357,7 @@ class EmbeddingDatasetNextLM(Dataset):
                 ]
             else:
                 warnings.warn(
-                    "count column does not exist in tokens DataFrame, min_word_count arg ignored."
+                    "count column does not exist in tokens_df DataFrame, min_word_count arg ignored."
                 )
 
         # Create dictionary from tokens. Start from 2, accounting for

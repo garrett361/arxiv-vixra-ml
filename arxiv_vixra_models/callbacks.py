@@ -1,5 +1,5 @@
 import numpy as np
-import pandas as pd
+from pandas import DataFrame
 import pytorch_lightning as pl
 from sklearn.metrics import (
     ConfusionMatrixDisplay,
@@ -86,7 +86,7 @@ class WandbAVPredictionCallback(pl.Callback):
             "prediction": y_probs,
             "source": y_true,
         }
-        examples_df = pd.DataFrame(examples_dict).iloc[: self.table_samples]
+        examples_df = DataFrame(examples_dict).iloc[: self.table_samples]
         # Order by least confident to most confident.
         examples_table = wandb.Table(
             dataframe=examples_df.sort_values(
@@ -274,7 +274,7 @@ class WandbTextGenerationCallback(pl.Callback):
                 pl_module.generate_text(seed, self.text_char_len, self.topk)
             )
         generated_text_dict = {"generated text": generated_text, "seed": self.seeds}
-        generated_text_df = pd.DataFrame(generated_text_dict)
+        generated_text_df = DataFrame(generated_text_dict)
         generated_text_table = wandb.Table(dataframe=generated_text_df)
         # Log in sync with the global step.
         wandb.log(

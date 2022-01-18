@@ -1,6 +1,6 @@
 from typing import Optional, Union
 
-import pandas as pd
+from pandas import DataFrame
 import pytorch_lightning as pl
 from torch.utils.data import DataLoader
 
@@ -18,21 +18,20 @@ class OneHotCharDataModuleAV(pl.LightningDataModule):
 
     Description
     ----------
-    Data and the 1-indexed char dict are expected to be in feather format.
     The `setup` method initializes the appropriate Dataset objects, which are
     assumed to be returning one-hot encoded text via their `__getitem__`
     methods.
 
     Parameters
     ----------
-    train_data : pd.DataFrame or str
-        DataFrame object or path to training data feather file.
-    val_data :  pd.DataFrame or str
-        DataFrame object or path to training data feather file.
-    tokens : pd.DataFrame or str
-        DataFrame object or path to character feather file.
+    train_text_df : DataFrame
+        Training text.
+    val_text_df : DataFrame
+        Validation text.
+    tokens_df : DataFrame
+        Character-to-index data stored in 'char' and 'idx' columns.
     text_column : str
-        Column in data feather file containing text, e.g. `'title'`.
+        Column text DataFrames containing  desired text, e.g. `'title'`.
     seq_len : int
         Sequence length used for processing text.
     batch_size : int, default 1
@@ -59,12 +58,11 @@ class OneHotCharDataModuleAV(pl.LightningDataModule):
 
     def __init__(
         self,
-        train_data: Union[str, pd.DataFrame],
-        val_data: Union[str, pd.DataFrame],
-        tokens: Union[str, pd.DataFrame],
+        train_text_df: DataFrame,
+        val_text_df: DataFrame,
+        tokens_df: DataFrame,
         text_column: str,
         seq_len: int,
-        test_data_feather_path: Optional[str] = None,
         batch_size: int = 1,
         num_workers: int = 1,
         pin_memory: bool = False,
@@ -73,12 +71,11 @@ class OneHotCharDataModuleAV(pl.LightningDataModule):
         check_normalization: bool = True,
     ) -> None:
         super().__init__()
-        self.train_data = train_data
-        self.val_data = val_data
-        self.tokens = tokens
+        self.train_text_df = train_text_df
+        self.val_text_df = val_text_df
+        self.tokens_df = tokens_df
         self.text_column = text_column
         self.seq_len = seq_len
-        self.test_data_feather_path = test_data_feather_path
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.pin_memory = pin_memory
@@ -89,16 +86,16 @@ class OneHotCharDataModuleAV(pl.LightningDataModule):
     def setup(self, stage: Optional[str] = "fit") -> None:
         if stage == "fit" or stage is None:
             self._train_dataset = OneHotCharDatasetAV(
-                data=self.train_data,
-                tokens=self.tokens,
+                text_df=self.train_text_df,
+                tokens_df=self.tokens_df,
                 text_column=self.text_column,
                 seq_len=self.seq_len,
                 sample_size=self.sample_size,
                 check_normalization=self.check_normalization,
             )
             self._val_dataset = OneHotCharDatasetAV(
-                data=self.val_data,
-                tokens=self.tokens,
+                text_df=self.val_text_df,
+                tokens_df=self.tokens_df,
                 text_column=self.text_column,
                 seq_len=self.seq_len,
                 sample_size=self.sample_size,
@@ -142,7 +139,6 @@ class OneHotCharDataModuleNextLM(pl.LightningDataModule):
 
     Description
     ----------
-    1-indexed char dict are expected to be in feather format.
     The `setup` method initializes the appropriate Dataset objects, which are
     assumed to be returning one-hot encoded text via their `__getitem__`
     methods.
@@ -153,8 +149,8 @@ class OneHotCharDataModuleNextLM(pl.LightningDataModule):
         Text for training.
     val_text : str
         Text for validation.
-    tokens : pd.DataFrame or str
-        DataFrame object or path to character feather file.
+    tokens_df : DataFrame
+        Character-to-index data stored in 'char' and 'idx' columns.
     seq_len : int
         Sequence length used for processing text.
     batch_size : int, default 1
@@ -181,9 +177,8 @@ class OneHotCharDataModuleNextLM(pl.LightningDataModule):
         self,
         train_text: str,
         val_text: str,
-        tokens: Union[str, pd.DataFrame],
+        tokens_df: DataFrame,
         seq_len: int,
-        test_data_feather_path: Optional[str] = None,
         batch_size: int = 1,
         num_workers: int = 1,
         pin_memory: bool = False,
@@ -194,9 +189,8 @@ class OneHotCharDataModuleNextLM(pl.LightningDataModule):
         super().__init__()
         self.train_text = train_text
         self.val_text = val_text
-        self.tokens = tokens
+        self.tokens_df = tokens_df
         self.seq_len = seq_len
-        self.test_data_feather_path = test_data_feather_path
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.pin_memory = pin_memory
@@ -208,14 +202,14 @@ class OneHotCharDataModuleNextLM(pl.LightningDataModule):
         if stage == "fit" or stage is None:
             self._train_dataset = OneHotCharDatasetNextLM(
                 text=self.train_text,
-                tokens=self.tokens,
+                tokens_df=self.tokens_df,
                 seq_len=self.seq_len,
                 check_normalization=self.check_normalization,
                 strip_before_normalization_check=self.strip_before_normalization_check,
             )
             self._val_dataset = OneHotCharDatasetNextLM(
                 text=self.val_text,
-                tokens=self.tokens,
+                tokens_df=self.tokens_df,
                 seq_len=self.seq_len,
                 check_normalization=self.check_normalization,
                 strip_before_normalization_check=self.strip_before_normalization_check,
@@ -260,21 +254,21 @@ class EmbeddingDataModuleAV(pl.LightningDataModule):
 
     Description
     ----------
-    tokens DataFrame (or associated feather file) is expected to have a 'count'
+    tokens_df DataFrame is expected to have a 'count'
     column tallying the number of times each word appeared in the training set.
 
     Parameters
     ----------
-    train_data : pd.DataFrame or str
-        DataFrame object or path to training data feather file.
-    val_data :  pd.DataFrame or str
-        DataFrame object or path to training data feather file.
-    tokens : pd.DataFrame or str
-        DataFrame object or path to vocabulary feather file.
+    train_text_df : DataFrame
+        Training text.
+    val_text_df : DataFrame
+        Validation text.
+    tokens_df : DataFrame
+        Token counts data stored in 'word' and 'count' columns.
     min_word_count : int, default 1
-        Minimum count for a word in tokens to be included in the vocabulary.
+        Minimum count for a word in tokens_df to be included in the vocabulary.
     text_column : str
-        Column in data feather file containing text, e.g. `'title'`.
+        Column text DataFrames containing  desired text, e.g. `'title'`.
     seq_len : int
         Sequence length used for processing text.
     batch_size : int, default 1
@@ -301,13 +295,12 @@ class EmbeddingDataModuleAV(pl.LightningDataModule):
 
     def __init__(
         self,
-        train_data: Union[str, pd.DataFrame],
-        val_data: Union[str, pd.DataFrame],
-        tokens: Union[str, pd.DataFrame],
+        train_text_df: DataFrame,
+        val_text_df: DataFrame,
+        tokens_df: DataFrame,
         text_column: str,
         seq_len: int,
         min_word_count: int = 1,
-        test_data_feather_path: Optional[str] = None,
         batch_size: int = 1,
         num_workers: int = 1,
         pin_memory: bool = False,
@@ -316,13 +309,12 @@ class EmbeddingDataModuleAV(pl.LightningDataModule):
         check_normalization: bool = True,
     ) -> None:
         super().__init__()
-        self.train_data = train_data
-        self.val_data = val_data
-        self.tokens = tokens
+        self.train_text_df = train_text_df
+        self.val_text_df = val_text_df
+        self.tokens_df = tokens_df
         self.min_word_count = min_word_count
         self.text_column = text_column
         self.seq_len = seq_len
-        self.test_data_feather_path = test_data_feather_path
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.pin_memory = pin_memory
@@ -333,8 +325,8 @@ class EmbeddingDataModuleAV(pl.LightningDataModule):
     def setup(self, stage: Optional[str] = "fit") -> None:
         if stage == "fit" or stage is None:
             self._train_dataset = EmbeddingDatasetAV(
-                data=self.train_data,
-                tokens=self.tokens,
+                text_df=self.train_text_df,
+                tokens_df=self.tokens_df,
                 min_word_count=self.min_word_count,
                 text_column=self.text_column,
                 seq_len=self.seq_len,
@@ -342,8 +334,8 @@ class EmbeddingDataModuleAV(pl.LightningDataModule):
                 check_normalization=self.check_normalization,
             )
             self._val_dataset = EmbeddingDatasetAV(
-                data=self.val_data,
-                tokens=self.tokens,
+                text_df=self.val_text_df,
+                tokens_df=self.tokens_df,
                 min_word_count=self.min_word_count,
                 text_column=self.text_column,
                 seq_len=self.seq_len,
@@ -387,7 +379,7 @@ class EmbeddingDataModuleNextLM(pl.LightningDataModule):
 
     Description
     ----------
-    tokens DataFrame (or associated feather file) is expected to have a 'count'
+    tokens_df DataFrame is expected to have a 'count'
     column tallying the number of times each word appeared in the training set.
 
     Parameters
@@ -396,10 +388,10 @@ class EmbeddingDataModuleNextLM(pl.LightningDataModule):
         Text for training.
     val_text : str
         Text for validation.
-    tokens : pd.DataFrame or str
-        DataFrame object or path to vocabulary feather file.
+    tokens_df : DataFrame
+        Token counts data stored in 'word' and 'count' columns.
     min_word_count : int, default 1
-        Minimum count for a word in tokens to be included in the vocabulary.
+        Minimum count for a word in tokens_df to be included in the vocabulary.
     seq_len : int
         Sequence length used for processing text.
     batch_size : int, default 1
@@ -426,10 +418,9 @@ class EmbeddingDataModuleNextLM(pl.LightningDataModule):
         self,
         train_text: str,
         val_text: str,
-        tokens: Union[str, pd.DataFrame],
+        tokens_df: DataFrame,
         seq_len: int,
         min_word_count: int = 1,
-        test_data_feather_path: Optional[str] = None,
         batch_size: int = 1,
         num_workers: int = 1,
         pin_memory: bool = False,
@@ -440,10 +431,9 @@ class EmbeddingDataModuleNextLM(pl.LightningDataModule):
         super().__init__()
         self.train_text = train_text
         self.val_text = val_text
-        self.tokens = tokens
+        self.tokens_df = tokens_df
         self.min_word_count = min_word_count
         self.seq_len = seq_len
-        self.test_data_feather_path = test_data_feather_path
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.pin_memory = pin_memory
@@ -455,7 +445,7 @@ class EmbeddingDataModuleNextLM(pl.LightningDataModule):
         if stage == "fit" or stage is None:
             self._train_dataset = EmbeddingDatasetNextLM(
                 text=self.train_text,
-                tokens=self.tokens,
+                tokens_df=self.tokens_df,
                 min_word_count=self.min_word_count,
                 seq_len=self.seq_len,
                 check_normalization=self.check_normalization,
@@ -463,7 +453,7 @@ class EmbeddingDataModuleNextLM(pl.LightningDataModule):
             )
             self._val_dataset = EmbeddingDatasetNextLM(
                 text=self.val_text,
-                tokens=self.tokens,
+                tokens_df=self.tokens_df,
                 min_word_count=self.min_word_count,
                 seq_len=self.seq_len,
                 check_normalization=self.check_normalization,

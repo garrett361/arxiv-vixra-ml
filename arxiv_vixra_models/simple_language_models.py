@@ -3,7 +3,7 @@ from typing import Dict, Tuple, Sequence, Optional, Union
 from typing_extensions import Literal
 import warnings
 
-import pandas as pd
+from pandas import DataFrame
 import torch
 from torch import nn, Tensor
 import torch.nn.functional as F
@@ -151,8 +151,8 @@ class LitOneHotCharRNNNextLM(LitRNNLoggingBaseLM):
     ----------
     seq_len : int
         Sequence length; standard torch rnn arg.
-    tokens : str or pd.DataFrame
-        DataFrame object or path to character feather file. Used to determine
+    tokens_df : DataFrame
+        DataFrame containing 'char' and 'idx' columns for one-hot encoding. Used to determine
         input_size arg of recurrent layer.
     rnn_type : str in ('RNN', 'LSTM', 'GRU')
         RNN architecture.
@@ -194,7 +194,7 @@ class LitOneHotCharRNNNextLM(LitRNNLoggingBaseLM):
     def __init__(
         self,
         seq_len: int,
-        tokens: Union[str, pd.DataFrame],
+        tokens_df: DataFrame,
         rnn_type: Literal["RNN", "LSTM", "GRU"],
         num_layers: int = 1,
         hidden_size: int = 128,
@@ -225,10 +225,7 @@ class LitOneHotCharRNNNextLM(LitRNNLoggingBaseLM):
         if truncated_bptt_steps is not None:
             self.truncated_bptt_steps = truncated_bptt_steps
 
-        if isinstance(tokens, str):
-            self.tokens_df = pd.read_feather(tokens)
-        else:
-            self.tokens_df = deepcopy(tokens)
+        self.tokens_df = deepcopy(tokens_df)
         self.hparams["input_size"] = len(self.tokens_df)
         self._char_to_idx = {
             row["char"]: row["idx"] for _, row in self.tokens_df.iterrows()
@@ -312,19 +309,18 @@ class LitEmbeddingRNNNextLM(LitRNNLoggingBaseLM):
     ----------
     Must specify `rnn_type` which can be any of `RNN`, `LSTM` or `GRU`. Trained
     on text which had .strip, unidecode, and .lower applied to it. Test-data
-    methods are currently not implemented to prevent early peeking. tokens
-    DataFrame (or associated feather file) is expected to have a 'count' column
+    methods are currently not implemented to prevent early peeking. tokens_df
+    DataFrame is expected to have a 'count' column
     tallying the number of times each word appeared in the training set.
 
     Parameters
     ----------
     seq_len : int
         Sequence length; standard torch rnn arg.
-    tokens : str or pd.DataFrame
-        DataFrame object or path to vocabulary feather file. Used to determine
-        num_embeddings arg of nn.Embedding.
+    tokens_df : DataFrame
+        DataFrame used to determine num_embeddings arg of nn.Embedding.
     min_word_count : int, default 1
-        Minimum count for a word in tokens to be included in the vocabulary.
+        Minimum count for a word in tokens_df to be included in the vocabulary.
     rnn_type : str in ('RNN', 'LSTM', 'GRU')
         RNN architecture.
     embedding_dim : int, default 256
@@ -371,7 +367,7 @@ class LitEmbeddingRNNNextLM(LitRNNLoggingBaseLM):
     def __init__(
         self,
         seq_len: int,
-        tokens: Union[str, pd.DataFrame],
+        tokens_df: DataFrame,
         rnn_type: Literal["RNN", "LSTM", "GRU"],
         min_word_count: int = 1,
         embedding_dim: int = 256,
@@ -409,10 +405,7 @@ class LitEmbeddingRNNNextLM(LitRNNLoggingBaseLM):
         PAD_IDX = 0
 
         # Get num_embeddings from tokens
-        if isinstance(tokens, str):
-            self.tokens_df = pd.read_feather(tokens)
-        else:
-            self.tokens_df = deepcopy(tokens)
+        self.tokens_df = deepcopy(tokens_df)
         if min_word_count > 1:
             if "count" in self.tokens_df:
                 self.tokens_df = self.tokens_df[
@@ -420,7 +413,7 @@ class LitEmbeddingRNNNextLM(LitRNNLoggingBaseLM):
                 ]
             else:
                 warnings.warn(
-                    "count column does not exist in tokens DataFrame, min_word_count arg ignored."
+                    "count column does not exist in tokens_df DataFrame, min_word_count arg ignored."
                 )
         # + 2 for padding and <UNK>.
         self.hparams["num_embeddings"] = len(self.tokens_df) + 2

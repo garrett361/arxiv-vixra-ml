@@ -1,6 +1,6 @@
 from typing import Dict, Tuple, Sequence, Union
 
-import pandas as pd
+from pandas import DataFrame
 import pytorch_lightning as pl
 import torch
 from torch import nn, Tensor
@@ -161,9 +161,8 @@ class LitOneHotFC(LitMinimalLoggingBase):
     ----------
     seq_len : int
         Length of text (counted by number of characters.)
-    tokens : str or pd.DataFrame
-        DataFrame object or path to character feather file, determines the size
-        of the one-hot vectors.
+    tokens_df : DataFrame
+        DataFrame containing 'char' and 'idx' columns for one-hot encoding.
     fc_dims : Sequence[int], default None
         Tuple of hidden dimension sizes. Default implements [64, 32].
     zero_fc_bias_init : bool, default True
@@ -184,7 +183,7 @@ class LitOneHotFC(LitMinimalLoggingBase):
     def __init__(
         self,
         seq_len: int,
-        tokens: Union[str, pd.DataFrame],
+        tokens_df: DataFrame,
         fc_dims: Sequence[int] = None,
         zero_fc_bias_init: bool = True,
         lr: float = 1e-3,
@@ -196,11 +195,7 @@ class LitOneHotFC(LitMinimalLoggingBase):
         # Save __init__ parameters to hparam dict attr.
         self.save_hyperparameters()
 
-        # Get input_size from tokens file.
-        if isinstance(tokens, str):
-            self.tokens_df = pd.read_feather(tokens)
-        else:
-            self.tokens_df = tokens
+        self.tokens_df = tokens_df
         self.hparams["input_size"] = len(self.tokens_df)
 
         if not fc_dims:
