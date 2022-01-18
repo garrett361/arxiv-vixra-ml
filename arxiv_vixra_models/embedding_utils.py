@@ -39,22 +39,22 @@ def str_to_idxs(
     through text_normalizer first. Text normalization and proper mapping via
     word_to_idx can be verified through the check_normalization flag.
 
-    Args
+    Parameters
     ----------
-    `s`: str
+    s : str
         Text to to be embedded
-    `word_to_idx`: dict
+    word_to_idx : dict
         Mapping from words to indices.
     seq_len : int or None, default 'None'
         Force text to be of length seq_len, if not None.
-    `check_normalization`: bool, default False
+    check_normalization : bool, default False
         Verify the text and word_to_idx mapping are of the proper formats.
-    `strip_before_normalization_check`: bool, default False
+    strip_before_normalization_check : bool, default False
         Flag for whether to strip text before performing normalization check.
 
     Returns
     ----------
-    `s_int_tensor`: Tensor
+    s_int_tensor : Tensor
         Integer tensor.
     """
     if check_normalization:
@@ -100,20 +100,20 @@ def idxs_to_str(
     Proper keys in idx_to_word can be verified through the check_normalization
     flag. By default <PAD> is mapped to blank space for aesthetics.
 
-    Args
+    Parameters
     ----------
-    `s`: str
+    s : str
         Text to to be embedded
-    `idx_to_word`: dict
+    idx_to_word : dict
         Mapping from indices to words.
-    `check_normalization`: bool, default False
+    check_normalization : bool, default False
         Verify the idx_to_word mapping keys have the proper form.
-    `replace_pad_with_space`: bool,  default True
+    replace_pad_with_space : bool,  default True
         Flag for replacing <PAD> with blank space.
 
     Returns
     ----------
-    `text`: str
+    text : str
         Decoded string.
     """
     if check_normalization:
@@ -148,15 +148,15 @@ def embedding_cosine_heatmap(
     is also assumed to have a get_embedding_cosine(idx1, idx2) method for
     computing the corresponding cosines.
 
-    Args
+    Parameters
     ----------
-    `model`: torch.nn.Module
+    model : torch.nn.Module
         Model used to compute cosines.
-    `words`: list of strs
+    words : list of strs
         List of words to be compared
-    `word_to_idx`: dict
+    word_to_idx : dict
         Mapping from words to indices.
-    `title`: str
+    title : str
         Optional plot title.
 
     Returns
@@ -207,15 +207,15 @@ def topk_cosines(
     is also assumed to have a get_embedding_weights method for which returns
     the embedding matrix.
 
-    Args
+    Parameters
     ----------
-    `model`: torch.nn.Module
+    model : torch.nn.Module
         Model used to compute cosines.
-    `words`: list of strs
+    words : list of strs
         List of words to be compared
-    `word_to_idx`: dict
+    word_to_idx : dict
         Mapping from words to indices.
-    `k`: int, default 3
+    k : int, default 3
         k value for topk
 
     Returns
@@ -252,15 +252,15 @@ def topk_cosines_vectors(
     Each word is included amongst its own top-k closest words, as this is useful
     for plotting functions.
 
-    Args
+    Parameters
     ----------
-    `model`: torch.nn.Module
+    model : torch.nn.Module
         Model used to compute cosines.
-    `words`: list of strs
+    words : list of strs
         List of words to be compared
-    `word_to_idx`: dict
+    word_to_idx : dict
         Mapping from words to indices.
-    `k`: int, default 3
+    k : int, default 3
         k value for topk
 
     Returns
@@ -299,17 +299,17 @@ def topk_cosines_df(
         -'cos': cosine between 'seed' and 'word' vectors.
 
 
-    Args
+    Parameters
     ----------
-    `model`: torch.nn.Module
+    model : torch.nn.Module
         Model used to compute cosines.
-    `words`: list of strs
+    words : list of strs
         List of words to be compared.
-    `word_to_idx`: dict
+    word_to_idx : dict
         Mapping from words to indices.
-    `idx_to_word`: dict
+    idx_to_word : dict
         Mapping from indices to words.
-    `k`: int, default 3
+    k : int, default 3
         k value for topk.
 
     Returns
@@ -359,16 +359,16 @@ def topk_analogies(
     is also assumed to have a get_embedding_weights method for which returns
     the embedding matrix.
 
-    Args
+    Parameters
     ----------
-    `model`: torch.nn.Module
+    model : torch.nn.Module
         Model used to compute cosines.
-    `analogy_str_seq`: sequence of three strs
+    analogy_str_seq : sequence of three strs
         Tuple, e.g., of the form (word0, word1, word2) for analogy
         word0 : word1 :: word2 : ???.
-    `word_to_idx`: dict
+    word_to_idx : dict
         Mapping from words to indices.
-    `k`: int, default 3
+    k : int, default 3
         k value for topk.
 
     Returns
@@ -425,17 +425,17 @@ def topk_analogies_df(
 
     We filter out the three-words in analogy_str_seq from the top-k results.
 
-    Args
+    Parameters
     ----------
-    `model`: torch.nn.Module
+    model : torch.nn.Module
         Model used to compute cosines.
-    `analogy_str_seq`: tuple of three strs
+    analogy_str_seq : tuple of three strs
         Tuple (word0, word1, word2) for analogy word0 : word1 :: word2 : ???.
-    `word_to_idx`: dict
+    word_to_idx : dict
         Mapping from words to indices.
-    `idx_to_word`: dict
+    idx_to_word : dict
         Mapping from indices to words.
-    `k`: int, default 3
+    k : int, default 3
         k value for topk.
 
     Returns

@@ -22,11 +22,11 @@ class LitMinimalLoggingBase(pl.LightningModule):
     - scores_loss
     - configure optimizers
 
-    Args
+    Parameters
     ----------
     seq_len : int
         Length of sequences passed to the recurrent architecture.
-    `save_models_to_wandb`: bool, default False
+    save_models_to_wandb : bool, default False
         Toggles saving the best models according to validation accuracy or
         loss to wandb.
     """
@@ -159,26 +159,26 @@ class LitOneHotFC(LitMinimalLoggingBase):
     Layers specified by passing a tuple of hidden dimensions.
     Test-data methods are currently not implemented to prevent early peeking.
 
-    Args
+    Parameters
     ----------
     seq_len : int
         Length of text (counted by number of characters.)
     tokens : str or pd.DataFrame
         DataFrame object or path to character feather file, determines the size
         of the one-hot vectors.
-    `fc_dims`: Sequence[int], default None
+    fc_dims : Sequence[int], default None
         Tuple of hidden dimension sizes. Default implements [64, 32].
-    `zero_fc_bias_init`: bool, default True
+    zero_fc_bias_init : bool, default True
         Flag for initializing the bias of all fully connected layers to zero.
-    `lr`: float, default 1e-3
+    lr : float, default 1e-3
         Learning rate for Adam optimizer.
-    `nonlinearity`: bool, default True
+    nonlinearity : bool, default True
         Boolean for whether to use insert ReLUs between hidden layers. A flag to
         test linear models.
-    `save_models_to_wandb`: bool, default False
+    save_models_to_wandb : bool, default False
         Toggles saving the best models according to validation accuracy or
         loss to wandb.
-    `logging_kwargs`: None or dict, optional
+    logging_kwargs : None or dict, optional
         Optional kwargs which don't affect performance, but which will be
         tracked by loggers such as wandb. Useful for tracking batch size, e.g.
     """

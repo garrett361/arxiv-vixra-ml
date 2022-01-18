@@ -23,7 +23,7 @@ class OneHotCharDataModuleAV(pl.LightningDataModule):
     assumed to be returning one-hot encoded text via their `__getitem__`
     methods.
 
-    Args
+    Parameters
     ----------
     train_data : pd.DataFrame or str
         DataFrame object or path to training data feather file.
@@ -47,12 +47,12 @@ class OneHotCharDataModuleAV(pl.LightningDataModule):
         If not None, include only a specific number of data points (if int) or
         specific fraction of data (if float), randomly chosen from the data.
         Applied separately to each training set: train, valid, and test.
-    `check_normalization`: bool, default True
+    check_normalization : bool, default True
         Check whether the text data was normalized according to text_normalizer.
 
     Notes
     ----------
-    `test_dataloader`
+    test_dataloader
         Not-yet implemented method as to protect against accidentally viewing
         test set.
     """
@@ -147,11 +147,11 @@ class OneHotCharDataModuleNextLM(pl.LightningDataModule):
     assumed to be returning one-hot encoded text via their `__getitem__`
     methods.
 
-    Args
+    Parameters
     ----------
-    `train_text`: str
+    train_text : str
         Text for training.
-    `val_text`: str
+    val_text : str
         Text for validation.
     tokens : pd.DataFrame or str
         DataFrame object or path to character feather file.
@@ -165,14 +165,14 @@ class OneHotCharDataModuleNextLM(pl.LightningDataModule):
         Dataloader's pin_memory option.
     persistent_workers : bool, default False
         Dataloader's persistent_workers option.
-    `check_normalization`: bool, default True
+    check_normalization : bool, default True
         Check whether the text data was normalized according to text_normalizer.
-    `strip_before_normalization_check`: bool, default True
+    strip_before_normalization_check : bool, default True
         Flag for whether to strip text before performing normalization check.
 
     Notes
     ----------
-    `test_dataloader`
+    test_dataloader
         Not-yet implemented method as to protect against accidentally viewing
         test set.
     """
@@ -263,7 +263,7 @@ class EmbeddingDataModuleAV(pl.LightningDataModule):
     tokens DataFrame (or associated feather file) is expected to have a 'count'
     column tallying the number of times each word appeared in the training set.
 
-    Args
+    Parameters
     ----------
     train_data : pd.DataFrame or str
         DataFrame object or path to training data feather file.
@@ -271,7 +271,7 @@ class EmbeddingDataModuleAV(pl.LightningDataModule):
         DataFrame object or path to training data feather file.
     tokens : pd.DataFrame or str
         DataFrame object or path to vocabulary feather file.
-    `min_word_count`: int, default 1
+    min_word_count : int, default 1
         Minimum count for a word in tokens to be included in the vocabulary.
     text_column : str
         Column in data feather file containing text, e.g. `'title'`.
@@ -289,12 +289,12 @@ class EmbeddingDataModuleAV(pl.LightningDataModule):
         If not None, include only a specific number of data points (if int) or
         specific fraction of data (if float), randomly chosen from the data.
         Applied separately to each training set: train, valid, and test.
-    `check_normalization`: bool, default True
+    check_normalization : bool, default True
         Check whether the text data was normalized according to text_normalizer.
 
     Notes
     ----------
-    `test_dataloader`
+    test_dataloader
         Not-yet implemented method as to protect against accidentally viewing
         test set.
     """
@@ -390,15 +390,15 @@ class EmbeddingDataModuleNextLM(pl.LightningDataModule):
     tokens DataFrame (or associated feather file) is expected to have a 'count'
     column tallying the number of times each word appeared in the training set.
 
-    Args
+    Parameters
     ----------
-    `train_text`: str
+    train_text : str
         Text for training.
-    `val_text`: str
+    val_text : str
         Text for validation.
     tokens : pd.DataFrame or str
         DataFrame object or path to vocabulary feather file.
-    `min_word_count`: int, default 1
+    min_word_count : int, default 1
         Minimum count for a word in tokens to be included in the vocabulary.
     seq_len : int
         Sequence length used for processing text.
@@ -410,14 +410,14 @@ class EmbeddingDataModuleNextLM(pl.LightningDataModule):
         Dataloader's pin_memory option.
     persistent_workers : bool, default False
         Dataloader's persistent_workers option.
-    `check_normalization`: bool, default True
+    check_normalization : bool, default True
         Check whether the text data was normalized according to text_normalizer.
-    `strip_before_normalization_check`: bool, default True
+    strip_before_normalization_check : bool, default True
         Flag for whether to strip text before performing normalization check.
 
     Notes
     ----------
-    `test_dataloader`
+    test_dataloader
         Not-yet implemented method as to protect against accidentally viewing
         test set.
     """

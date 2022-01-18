@@ -18,9 +18,9 @@ def ascii_lower_char_normalizer(ch: str) -> str:
     alpha-numeric ASCII characters as they are, and maps all other characters
     to blank space.
 
-    Args
+    Parameters
     ----------
-    `ch`: str
+    ch : str
         Lower-case character to-be-normalized.
 
     Returns
@@ -43,9 +43,9 @@ def text_normalizer(s: str) -> str:
     Strips, lowers, and normalizes text brutally using the unidecode package.
     All remaining text is in a subset of ASCII.
 
-    Args
+    Parameters
     ----------
-    `s`: str
+    s : str
         Text to-be-normalized.
 
     Returns

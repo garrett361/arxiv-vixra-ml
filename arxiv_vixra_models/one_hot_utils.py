@@ -28,22 +28,22 @@ def str_to_one_hot(
     first and char_to_idx should map a blank space to zero.  Resulting shape is
     (seq_len, len(char_to_idx)).
 
-    Args
+    Parameters
     ----------
-    `s`: str
+    s : str
         Text to to be embedded
-    `char_to_idx`: dict
+    char_to_idx : dict
         Mapping from chars to indices.
     seq_len : int or None, default 'None'
         Force text to be of length seq_len, if not None.
-    `check_normalization`: bool, default False
+    check_normalization : bool, default False
         Verify the text and char_to_idx mapping are of the proper formats.
-    `strip_before_normalization_check`: bool, default False
+    strip_before_normalization_check : bool, default False
         Flag for whether to strip text before performing normalization check.
 
     Returns
     ----------
-    `s_tensor`: Tensor
+    s_tensor : Tensor
         One-hot encoded tensor.
     """
     if check_normalization:
@@ -82,18 +82,18 @@ def one_hot_to_str(
     corresponding to the one-hot encoded tensor. tensor is expected to be of
     shape (seq_len, num_chars)
 
-    Args
+    Parameters
     ----------
-    `s`: str
+    s : str
         Text to to be embedded
-    `idx_to_char`: dict
+    idx_to_char : dict
         Mapping from chars to indices.
-    `check_normalization`: bool, default False
+    check_normalization : bool, default False
         Verify the idx_to_char mapping has the proper form.
 
     Returns
     ----------
-    `text`: str
+    text : str
         Decoded string.
     """
     if check_normalization:

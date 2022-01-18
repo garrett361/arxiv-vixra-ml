@@ -19,27 +19,27 @@ PAD_IDX = 0
 class LitGloVe(pl.LightningModule):
     """PyTorch Lightning class for the GloVe algorithm.
 
-    Args
+    Parameters
     ----------
-    `co_matrix`: Tensor
+    co_matrix : Tensor
         Co-occurrence matrix, a sparse torch tensor.
     seq_len : int
         Sequence length; standard torch rnn arg.
-    `embedding_dim`: int, default 512
+    embedding_dim : int, default 512
         Size of embedding dimension; standard torch nn.Embedding arg.
-    `x_max`: int, default 100,
+    x_max : int, default 100,
         x_max loss function parameter, as defined in GloVe paper.
-    `alpha`: float, default .75,
+    alpha : float, default .75,
         alpha loss function parameter, as defined in GloVe paper.
-    `lr`: float, default 5e-2
+    lr : float, default 5e-2
         Learning rate for Adam optimizer. Set to the GloVe default value.
-    `lr_scheduler`: in ('cyclic', 'plateau', None), default None
+    lr_scheduler : in ('cyclic', 'plateau', None), default None
         Toggles the use of a learning rate scheduler, either 'cyclic'
         (CyclicLR), 'plateau' (ReduceLROnPlateau), or None (constant lr).
-    `lr_scheduler_args`: dict or None, default None
+    lr_scheduler_args : dict or None, default None
         Optional dictionary of arguments to be passed to the lr_scheduler.
         Overwrites every arg of the scheduler, apart from the optimizer.
-    `save_models_to_wandb`: bool, default False
+    save_models_to_wandb : bool, default False
         Toggles saving the best models according to validation accuracy and
         loss to wandb.
     batch_size : int, default 128
@@ -48,35 +48,35 @@ class LitGloVe(pl.LightningModule):
         Dataloader num_workers arg.
     persistent_workers : bool, default True
         Dataloader persistent_workers arg.
-    `logging_kwargs`: None or dict, optional
+    logging_kwargs : None or dict, optional
         Optional kwargs which don't affect performance, but which will be
         tracked by loggers such as wandb. Useful for tracking batch size, e.g.
 
     Methods
     ----------
-    `get_embedding_weights`:
+    get_embedding_weights :
         Returns the mean of the two GloVe embedding layer weights.
-    `get_embedding_biases`:
+    get_embedding_biases :
         Returns the mean of the two GloVe biases.
-    `get_embedding_vector`:
+    get_embedding_vector :
         Returns the mean of the two Glove vectors corresponding to a given
         word index.
-    `get_unit_embedding_vector`:
+    get_unit_embedding_vector :
         Returns the mean of the two Glove vectors corresponding to a given
         word index whose length has been normalized to 1.
-    `get_embedding_cosine`:
+    get_embedding_cosine :
         Returns the cosine between the vectors corresponding to a pair of
         word indices.
-    `get_embedding_dot`:
+    get_embedding_dot :
         Returns the dot-product between the vectors corresponding to a pair
         of word indices.
-    `pretrained_word_embedding`: Tensor, optional
+    pretrained_word_embedding : Tensor, optional
         Optionally provide a pretrained tensor for fine-tuning.
-    `pretrained_context_embedding`: Tensor, optional
+    pretrained_context_embedding : Tensor, optional
         Optionally provide a pretrained tensor for fine-tuning.
     pretrained_word_bias`: Tensor, optional
         Optionally provide a pretrained tensor for fine-tuning.
-    `pretrained_context_bias`: Tensor, optional
+    pretrained_context_bias : Tensor, optional
         Optionally provide a pretrained tensor for fine-tuning.
     """
 
@@ -367,41 +367,41 @@ class CoMatrixBuilder:
     1 / (distance-to-center-word) as in GloVe. This can be toggled to constant
     weighting through the glove_window_weighting flag.
 
-    Args
+    Parameters
     ----------
-    `text`: str
+    text : str
         Text to to be embedded
-    `word_to_idx`: dict
+    word_to_idx : dict
         Mapping from words to indices.
-    `context_window`: int, default 2
+    context_window : int, default 2
         Width of the context window used on either side of the center word.
     batch_size : int, default 128
         Dataloader batch_size arg.
-    `device`: torch.device default torch.device('cpu')
+    device : torch.device default torch.device('cpu')
         Device for tensors during co-matrix construction.
     num_workers : int, default 0
         Dataloader num_workers arg.
     pin_memory : bool, default False
         Dataloader pin_memory arg.
-    `non_blocking`: bool, default False
+    non_blocking : bool, default False
         arg for tensor.to calls when passing to cuda.
-    `glove_window_weighting`: bool, default True
+    glove_window_weighting : bool, default True
         Flag for weighing context of center word with 1 / n decay,
         as in GloVe. False weighs all context words equally.
-    `include_center_in_context`: bool, default False
+    include_center_in_context : bool, default False
         Experimental flag for including the center word in its own context.
-    `check_normalization`: bool, default False
+    check_normalization : bool, default False
         Verify the text and word_to_idx mapping are of the proper formats.
-    `perform_symmetry_sanity_check`: bool, default True
+    perform_symmetry_sanity_check : bool, default True
         Flag for verifying that the co-occurrence matrix is symmetric, up to
         tolerances from text edges. A very memory-consuming check.
 
     Methods
     ----------
-    `generate_co_matrix`:
+    generate_co_matrix :
         Populates the dense co-occurrence tensor, stored as
     the `co_matrix` attr.
-    `get_sparse_co_matrix`:
+    get_sparse_co_matrix :
         Returns the co_matrix as a sparse tensors and optionally writes to disk
         at `saved_path`.
     """
