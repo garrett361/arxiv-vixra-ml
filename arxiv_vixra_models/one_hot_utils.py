@@ -155,6 +155,6 @@ def idx_to_char_dict_from_df(
     if check_normalization:
         blank_check = idx_to_char_dict[0]
         assert (
-            blank_check == BLANK_IDX
+            blank_check == " "
         ), f"0 expected to map to blank space, not {blank_check}."
     return idx_to_char_dict

@@ -143,7 +143,8 @@ def word_to_idx_dict_from_df(
     included in the output dict mapped to 0 and 1,
     respectively. df is assumed to contain columns with the word
     and count data representing the frequency of each word.  The
-    indices for all words in df are ordered by count.
+    indices for all words in df are ordered by count starting from
+    idx = 2.
 
     Parameters
     ----------

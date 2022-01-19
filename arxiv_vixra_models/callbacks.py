@@ -26,7 +26,9 @@ class WandbAVPredictionCallback(pl.Callback):
     ----------
     Logs images of the confusion matrix, ROC, and PR curves at
     each step, in addition to sorted predictions for individual
-    text samples and a histogram of the predicted probabilities.s
+    text samples and a histogram of the predicted probabilities.
+    Assumes the model either has a get_probs or get_probs_hiddens
+    method from which we can get probability predictions.
 
     Parameters
     ----------
@@ -72,7 +74,10 @@ class WandbAVPredictionCallback(pl.Callback):
         self, trainer: pl.Trainer, pl_module: pl.LightningModule
     ) -> None:
         val_tensors = self.val_sample_inputs.to(device=pl_module.device)
-        probs, _ = pl_module.get_probs_hiddens(val_tensors).view(-1)
+        if hasattr(pl_module, "get_probs_hiddens"):
+            probs, _ = pl_module.get_probs_hiddens(val_tensors).view(-1)
+        else:
+            probs = pl_module.get_probs(val_tensors).view(-1)
         probs = probs.cpu()
         targets = self.val_sample_targets.cpu()
         # Manipulate data to expected np arrays.
