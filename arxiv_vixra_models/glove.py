@@ -233,6 +233,7 @@ class LitGloVe(pl.LightningModule):
         loss = self._criterion(
             word_vectors, context_vectors, word_bias, context_bias, co_matrix_elements
         )
+        self.log("train_batch_loss", loss, prog_bar=True)
         return {"loss": loss}
 
     def training_epoch_end(self, training_step_outputs: Dict[str, Tensor]) -> None:
