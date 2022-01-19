@@ -22,7 +22,7 @@ class LitGloVe(pl.LightningModule):
 
     Parameters
     ----------
-    co_matrix : Tensor
+    co_matrix_sparse : Tensor
         Co-occurrence matrix, a sparse torch tensor.
     seq_len : int
         Sequence length; standard torch rnn arg.
@@ -83,7 +83,7 @@ class LitGloVe(pl.LightningModule):
 
     def __init__(
         self,
-        co_matrix: Tensor,
+        co_matrix_sparse: Tensor,
         embedding_dim: int = 512,
         x_max: int = 100,
         alpha: float = 0.75,
@@ -105,13 +105,14 @@ class LitGloVe(pl.LightningModule):
     ) -> None:
         super().__init__()
         # Save __init__ parameters to hparam dict attr.
-        self.save_hyperparameters()
-        self.co_matrix = co_matrix
+        # Need to ignore co_matrix_sparse to avoid logging issues.
+        self.save_hyperparameters(ignore=co_matrix_sparse)
+        self.co_matrix_sparse = co_matrix_sparse
         # Key off of loss when saving models.
         self.best_loss = float("inf")
 
         # Get num_embeddings from co_matrix.
-        self.hparams["num_embeddings"] = co_matrix.shape[-1]
+        self.hparams["num_embeddings"] = self.co_matrix_sparse.shape[-1]
         if pretrained_word_embedding is not None:
             self.word_embedding = nn.Embedding.from_pretrained(
                 pretrained_word_embedding, freeze=False, padding_idx=PAD_IDX
@@ -214,7 +215,7 @@ class LitGloVe(pl.LightningModule):
         return loss
 
     def train_dataloader(self):
-        dataset = GloVeDataset(co_matrix=self.co_matrix)
+        dataset = GloVeDataset(co_matrix_sparse=self.co_matrix_sparse)
         loader = DataLoader(
             dataset=dataset,
             batch_size=self.hparams["batch_size"],

@@ -75,7 +75,8 @@ class WandbAVPredictionCallback(pl.Callback):
     ) -> None:
         val_tensors = self.val_sample_inputs.to(device=pl_module.device)
         if hasattr(pl_module, "get_probs_hiddens"):
-            probs, _ = pl_module.get_probs_hiddens(val_tensors).view(-1)
+            probs, _ = pl_module.get_probs_hiddens(val_tensors)
+            probs = probs.view(-1)
         else:
             probs = pl_module.get_probs(val_tensors).view(-1)
         probs = probs.cpu()

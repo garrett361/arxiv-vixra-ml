@@ -394,7 +394,7 @@ class GloVeDataset(Dataset):
 
     Parameters
     ----------
-    co_matrix : Tensor
+    co_matrix_sparse : Tensor
         Co-occurrence matrix, a sparse torch tensor.
 
     Methods
@@ -404,12 +404,12 @@ class GloVeDataset(Dataset):
         co_matrix_element = co_matrix[row, col].
     """
 
-    def __init__(self, co_matrix: Tensor) -> None:
+    def __init__(self, co_matrix_sparse: Tensor) -> None:
         super().__init__()
         # __getitem__ is an order-of-magnitude faster from a dense tensor than
         # a sparse one.
-        self._co_matrix = co_matrix.to_dense()
-        self._indices = co_matrix.coalesce().indices()
+        self._co_matrix = co_matrix_sparse.to_dense()
+        self._indices = co_matrix_sparse.coalesce().indices()
 
     def __len__(self) -> int:
         """Return the number of non-trivial entries in the sparse co_matrix."""
