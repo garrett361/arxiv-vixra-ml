@@ -106,7 +106,7 @@ class LitGloVe(pl.LightningModule):
         super().__init__()
         # Save __init__ parameters to hparam dict attr.
         # Need to ignore co_matrix_sparse to avoid logging issues.
-        self.save_hyperparameters(ignore=co_matrix_sparse)
+        self.save_hyperparameters(ignore="co_matrix_sparse")
         self.co_matrix_sparse = co_matrix_sparse
         # Key off of loss when saving models.
         self.best_loss = float("inf")
@@ -156,14 +156,11 @@ class LitGloVe(pl.LightningModule):
             "plateau": torch.optim.lr_scheduler.ReduceLROnPlateau,
         }
         lr_scheduler_dict = {
-            "cyclic": {
-                "interval": "step",
-            },
-            "plateau": {
-                "monitor": "train_epoch_loss",
-            },
+            "cyclic": {"interval": "step"},
+            "plateau": {"monitor": "train_epoch_loss"},
+            None: None,
         }
-        scheduler = scheduler_dict.get(self.hparams["lr_scheduler"], None)
+        scheduler = scheduler_dict[self.hparams["lr_scheduler"]]
         if scheduler:
             if self.hparams["lr_scheduler_args"]:
                 scheduler = scheduler(optimizer, **self.hparams["lr_scheduler_args"])
@@ -261,8 +258,12 @@ class LitGloVe(pl.LightningModule):
         torch.save(self.state_dict(), model_file_name)
         wandb.save(model_file_name)
 
+        # Because co_matrix_sparse was ignored for logging error purposes
+        # we need to re-include it before syncing.
         model_init_params_file_name = "model_init_params.pt"
-        torch.save(self.hparams, model_init_params_file_name)
+        init_params = self.hparams
+        init_params["co_matrix_sparse"] = self.co_matrix_sparse
+        torch.save(init_params, model_init_params_file_name)
         wandb.save(model_init_params_file_name)
 
         print(

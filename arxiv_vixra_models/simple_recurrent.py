@@ -114,8 +114,9 @@ class LitRNNLoggingBaseAV(pl.LightningModule):
         scheduler_dict = {
             "cyclic": torch.optim.lr_scheduler.CyclicLR,
             "plateau": torch.optim.lr_scheduler.ReduceLROnPlateau,
+            None: None,
         }
-        scheduler = scheduler_dict.get(self.lr_scheduler, None)
+        scheduler = scheduler_dict[self.lr_scheduler]
         if scheduler:
             if self.lr_scheduler_args:
                 scheduler = scheduler(optimizer, **self.lr_scheduler_args)
