@@ -119,7 +119,7 @@ class LitMinimalLoggingBase(pl.LightningModule):
             self.log(name, metric, prog_bar=True)
 
         # Update and log the best val acc and loss seen so far.
-        # booleans used if save_best_model.
+        # booleans used if save_models_to_wandb.
         is_best_val_loss = self._curr_val_loss < self.best_val_loss
         is_best_val_acc = self._curr_val_acc > self.best_val_acc
         self.best_val_loss = min(self.best_val_loss, self._curr_val_loss)
@@ -129,16 +129,16 @@ class LitMinimalLoggingBase(pl.LightningModule):
 
         # Save best models, if desired/implementd.
         if is_best_val_acc and self.save_models_to_wandb:
-            self.save_best_model(metric="val_acc")
+            self.save_model(metric="val_acc")
         if is_best_val_loss and self.save_models_to_wandb:
-            self.save_best_model(metric="val_loss")
+            self.save_model(metric="val_loss")
 
-    def save_best_model(self, metric: str) -> None:
+    def save_model(self, metric: str) -> None:
         """Overwrite.
 
         Save the state_dict and all __init__ parameters to wandb based on metric.
         """
-        raise NotImplementedError("Must overwrite the save_best_model method.")
+        raise NotImplementedError("Must overwrite the save_model method.")
 
     def test_step(self):
         raise NotImplementedError("Should not be using test dataset yet.")
@@ -238,7 +238,7 @@ class LitOneHotFC(LitMinimalLoggingBase):
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=self.hparams["lr"])
 
-    def save_best_model(self, metric: str) -> None:
+    def save_model(self, metric: str) -> None:
         """Save state_dict and non-ignored __init__ parameters
         logged to self.hparams to wandb.
         """

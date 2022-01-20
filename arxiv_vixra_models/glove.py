@@ -245,13 +245,13 @@ class LitGloVe(pl.LightningModule):
         if mean_loss < self.best_loss:
             self.best_loss = mean_loss
             if self.hparams["save_models_to_wandb"]:
-                self.save_best_model()
+                self.save_model()
 
         metric_dict = {"train_epoch_loss": mean_loss, "best_loss": self.best_loss}
         for name, metric in metric_dict.items():
             self.log(name, metric, prog_bar=True)
 
-    def save_best_model(self) -> None:
+    def save_model(self) -> None:
         """Save state_dict and non-ignored __init__ parameters
         logged to self.hparams to wandb.
         """
