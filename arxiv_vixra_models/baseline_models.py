@@ -236,7 +236,9 @@ class LitOneHotFC(LitMinimalLoggingBase):
         return scores, loss
 
     def configure_optimizers(self):
-        return torch.optim.Adam(self.parameters(), lr=self.hparams["lr"])
+        optimizer = torch.optim.Adam(self.parameters(), lr=self.hparams["lr"])
+        optimizer_dict = {"optimizer": optimizer}
+        return optimizer_dict
 
     def save_model(self, metric: str) -> None:
         """Save state_dict and non-ignored __init__ parameters

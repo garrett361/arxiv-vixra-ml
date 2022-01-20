@@ -150,7 +150,7 @@ class LitGloVe(pl.LightningModule):
     def configure_optimizers(self):
         """Adam optimizer."""
         optimizer = torch.optim.Adam(self.parameters(), lr=self.hparams["lr"])
-        optim_dict = {"optimizer": optimizer}
+        optimizer_dict = {"optimizer": optimizer}
         scheduler_dict = {
             "cyclic": torch.optim.lr_scheduler.CyclicLR,
             "plateau": torch.optim.lr_scheduler.ReduceLROnPlateau,
@@ -166,14 +166,14 @@ class LitGloVe(pl.LightningModule):
                 scheduler = scheduler(optimizer, **self.hparams["lr_scheduler_args"])
             else:
                 scheduler = scheduler(optimizer)
-            optim_dict["lr_scheduler"] = {
+            optimizer_dict["lr_scheduler"] = {
                 **lr_scheduler_dict[self.hparams["lr_scheduler"]],
                 **{
                     "scheduler": scheduler,
                     "frequency": 1,
                 },
             }
-        return optim_dict
+        return optimizer_dict
 
     def forward(self, rows: Tensor, cols: Tensor) -> Tuple[Tensor, Tensor]:
         """Returns a tuple of the word and context vectors, respectively."""

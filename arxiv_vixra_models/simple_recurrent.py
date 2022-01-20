@@ -109,7 +109,7 @@ class LitRNNLoggingBaseAV(pl.LightningModule):
     def configure_optimizers(self):
         """Adam optimizer with various learning rate scheduler options."""
         optimizer = torch.optim.Adam(self.parameters(), lr=self.lr)
-        optim_dict = {"optimizer": optimizer}
+        optimizer_dict = {"optimizer": optimizer}
 
         scheduler_dict = {
             "cyclic": torch.optim.lr_scheduler.CyclicLR,
@@ -122,13 +122,13 @@ class LitRNNLoggingBaseAV(pl.LightningModule):
                 scheduler = scheduler(optimizer, **self.lr_scheduler_args)
             else:
                 scheduler = scheduler(optimizer)
-            optim_dict["lr_scheduler"] = {
+            optimizer_dict["lr_scheduler"] = {
                 "scheduler": scheduler,
                 "interval": self.lr_scheduler_interval,
                 "monitor": self.lr_scheduler_monitor,
                 "frequency": 1,
             }
-        return optim_dict
+        return optimizer_dict
 
     def forward(
         self, input: Tensor, hiddens: Optional[Tensor] = None
