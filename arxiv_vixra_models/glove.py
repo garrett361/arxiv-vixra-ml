@@ -111,6 +111,8 @@ class LitGloVe(pl.LightningModule):
         # Key off of loss when saving models.
         self.best_loss = float("inf")
 
+        self.dataset = GloVeDataset(co_matrix_sparse=self.co_matrix_sparse)
+
         # Get num_embeddings from co_matrix.
         self.hparams["num_embeddings"] = self.co_matrix_sparse.shape[-1]
         if pretrained_word_embedding is not None:
@@ -212,16 +214,15 @@ class LitGloVe(pl.LightningModule):
         return loss
 
     def train_dataloader(self):
-        dataset = GloVeDataset(co_matrix_sparse=self.co_matrix_sparse)
-        loader = DataLoader(
-            dataset=dataset,
+        dataloader = DataLoader(
+            dataset=self.dataset,
             batch_size=self.hparams["batch_size"],
             shuffle=True,
             num_workers=self.hparams["num_workers"],
             persistent_workers=self.hparams["persistent_workers"],
             pin_memory=self.hparams["pin_memory"],
         )
-        return loader
+        return dataloader
 
     def training_step(
         self, batch: Tuple[Tensor, Tensor, Tensor], batch_idx: int
