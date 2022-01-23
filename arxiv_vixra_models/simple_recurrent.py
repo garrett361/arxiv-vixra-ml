@@ -78,6 +78,10 @@ class LitRNNLoggingBaseAV(pl.LightningModule):
         self.lr_scheduler_args = lr_scheduler_args
         self.lr_scheduler_interval = lr_scheduler_interval
         self.lr_scheduler_monitor = lr_scheduler_monitor
+        # An optional initial hidden state for the recurrent layers.
+        # To be overwritten with batch_size = 1 and broadcast to
+        # the appropriate batch dimension in the forward method.
+        self.initial_hiddens = None
 
         # Initializing best val loss and accuracy achieved.
         self.best_val_loss = float("inf")
@@ -136,6 +140,20 @@ class LitRNNLoggingBaseAV(pl.LightningModule):
         """Returns outputs as a flattened vector, along with the hidden state."""
         if hasattr(self, "embedding"):
             input = self.embedding(input)
+        if hiddens is None:
+            hiddens = self.initial_hiddens
+            # Assuming batch_first = True, expand hiddens to the correct batch_size.
+            batch_size = input.shape[0]
+            # Need to account for both LSTM hidden states, if LSTM.
+            if isinstance(hiddens, nn.ParameterList):
+                hiddens = [
+                    t.expand(t.shape[0], batch_size, t.shape[2]).contiguous()
+                    for t in hiddens
+                ]
+            else:
+                hiddens = hiddens.expand(
+                    hiddens.shape[0], batch_size, hiddens.shape[2]
+                ).contiguous()
         output, hiddens = self.rnn(input, hiddens)
 
         if self.hidden_strategy == "last":
@@ -191,9 +209,7 @@ class LitRNNLoggingBaseAV(pl.LightningModule):
         hiddens: Optional[Tensor] = None,
     ) -> Dict[str, Tensor]:
         inputs, targets = batch
-        scores, loss, hiddens = self.scores_loss_hiddens(
-            inputs, targets, hiddens=hiddens
-        )
+        scores, loss, hiddens = self.scores_loss_hiddens(inputs, targets, hiddens)
         self.log("train_batch_loss", loss, prog_bar=True)
         for metric in self.train_metrics_dict.values():
             metric(scores.detach(), targets)
@@ -447,6 +463,20 @@ class LitOneHotCharRNNAV(LitRNNLoggingBaseAV):
         if recurrent_dropout is not None:
             self._rnn_dict["dropout"] = None
         self.rnn = self.rnn(**self._rnn_dict)
+        # Rather than always using zeros as the initial hidden state(s)
+        # introduce learnable inital parameters.
+        if rnn_type in ("RNN", "GRU"):
+            self.initial_hiddens = nn.Parameter(
+                torch.zeros(bi_factor * num_layers, 1, hidden_size)
+            )
+        elif rnn_type == "LSTM":
+            self.initial_hiddens = nn.ParameterList(
+                [
+                    nn.Parameter(torch.zeros(bi_factor * num_layers, 1, hidden_size)),
+                    nn.Parameter(torch.zeros(bi_factor * num_layers, 1, hidden_size)),
+                ]
+            )
+
         if self.hparams["fc_dims"] is None:
             self.hparams["fc_dims"] = []
         in_dims = [self._fc_input_size] + self.hparams["fc_dims"]
@@ -664,6 +694,19 @@ class LitEmbeddingRNNAV(LitRNNLoggingBaseAV):
         if recurrent_dropout is not None:
             self._rnn_dict["dropout"] = recurrent_dropout
         self.rnn = self.rnn(**self._rnn_dict)
+        # Rather than always using zeros as the initial hidden state(s)
+        # introduce learnable inital parameters.
+        if rnn_type in ("RNN", "GRU"):
+            self.initial_hiddens = nn.Parameter(
+                torch.zeros(bi_factor * num_layers, 1, hidden_size)
+            )
+        elif rnn_type == "LSTM":
+            self.initial_hiddens = nn.ParameterList(
+                [
+                    torch.zeros(bi_factor * num_layers, 1, hidden_size),
+                    torch.zeros(bi_factor * num_layers, 1, hidden_size),
+                ]
+            )
 
         if self.hparams["fc_dims"] is None:
             self.hparams["fc_dims"] = []
