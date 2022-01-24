@@ -39,7 +39,7 @@ class LitRNNLoggingBaseAV(pl.LightningModule):
     hidden_strategy : in ('last', 'max', 'mean', 'concat'), default 'last'
         Determines which information from the hidden states is propagated to
         the fully-connected classification layers: the state from the last
-        step, the max element across all steps, the mean of all steps, or
+        step, the max across all steps, the mean of all steps, or
         all three preceding possibilities concatenated together.
     lr_scheduler : in (None, 'cyclic', 'plateau'), optional
         Toggles the use of a learning rate scheduler, either 'cyclic'
@@ -155,6 +155,22 @@ class LitRNNLoggingBaseAV(pl.LightningModule):
                     hiddens.shape[0], batch_size, hiddens.shape[2]
                 ).contiguous()
         output, hiddens = self.rnn(input, hiddens)
+        """Different data is fed into the fully-connected layers
+        depending on self.hidden_strategy.  When the architecture is
+        bi-directional we also re-organize the RNN outputs such that
+        output[:, t] corresponds to the output after having stepped
+        through t steps of the input in both the forward and backwards
+        directions. This ensures that that in the 'last' strategy,
+        output[:, -1] returns rnn outputs which have seen the full input.
+        See https://towardsdatascience.com/understanding-bidirectional-rnn-in-pytorch-5bd25a5dd66
+        for a nice discussion of the default output order.
+        """
+        if self.rnn.bidirectional:
+            hidden_size = self.rnn.hidden_size
+            forward_step_output = output[..., :hidden_size]
+            backward_step_output = output[..., hidden_size:]
+            backward_step_output_flip = backward_step_output.flip(1)
+            output = torch.cat((forward_step_output, backward_step_output_flip), dim=-1)
 
         if self.hidden_strategy == "last":
             output = output[:, -1]
