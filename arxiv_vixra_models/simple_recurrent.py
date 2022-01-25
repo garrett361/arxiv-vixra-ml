@@ -161,7 +161,7 @@ class LitRNNLoggingBaseAV(pl.LightningModule):
         output[:, t] corresponds to the output after having stepped
         through t steps of the input in both the forward and backwards
         directions. This ensures that that in the 'last' strategy,
-        output[:, -1] returns rnn outputs which have seen the full input.
+        output[:, -1] returns rnn outputs which have seen the full input, e.g.
         See https://towardsdatascience.com/understanding-bidirectional-rnn-in-pytorch-5bd25a5dd66
         for a nice discussion of the default output order.
         """
@@ -180,7 +180,7 @@ class LitRNNLoggingBaseAV(pl.LightningModule):
             output = output.mean(dim=1)
         elif self.hidden_strategy == "concat":
             output = torch.cat(
-                (output[:, -1], output.max(dim=1).values, output.mean(dim=1)), dim=1
+                (output[:, -1], output.max(dim=1).values, output.mean(dim=1)), dim=-1
             )
 
         for layer in self.fc_layers:
@@ -483,13 +483,13 @@ class LitOneHotCharRNNAV(LitRNNLoggingBaseAV):
         # introduce learnable inital parameters.
         if rnn_type in ("RNN", "GRU"):
             self.initial_hiddens = nn.Parameter(
-                torch.zeros(bi_factor * num_layers, 1, hidden_size)
+                torch.randn(bi_factor * num_layers, 1, hidden_size)
             )
         elif rnn_type == "LSTM":
             self.initial_hiddens = nn.ParameterList(
                 [
-                    nn.Parameter(torch.zeros(bi_factor * num_layers, 1, hidden_size)),
-                    nn.Parameter(torch.zeros(bi_factor * num_layers, 1, hidden_size)),
+                    nn.Parameter(torch.randn(bi_factor * num_layers, 1, hidden_size)),
+                    nn.Parameter(torch.randn(bi_factor * num_layers, 1, hidden_size)),
                 ]
             )
 
@@ -714,13 +714,13 @@ class LitEmbeddingRNNAV(LitRNNLoggingBaseAV):
         # introduce learnable inital parameters.
         if rnn_type in ("RNN", "GRU"):
             self.initial_hiddens = nn.Parameter(
-                torch.zeros(bi_factor * num_layers, 1, hidden_size)
+                torch.randn(bi_factor * num_layers, 1, hidden_size)
             )
         elif rnn_type == "LSTM":
             self.initial_hiddens = nn.ParameterList(
                 [
-                    torch.zeros(bi_factor * num_layers, 1, hidden_size),
-                    torch.zeros(bi_factor * num_layers, 1, hidden_size),
+                    torch.randn(bi_factor * num_layers, 1, hidden_size),
+                    torch.randn(bi_factor * num_layers, 1, hidden_size),
                 ]
             )
 
