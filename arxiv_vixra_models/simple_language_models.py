@@ -106,27 +106,37 @@ class LitRNNLoggingBaseLM(LitRNNLoggingBaseAV):
             input = self.embedding(input)
         output, hiddens = self.rnn(input, hiddens)
 
+        if hiddens is None:
+            hiddens = self.initial_hiddens
+            # Assuming batch_first = True, expand hiddens to the correct batch_size.
+            batch_size = input.shape[0]
+            # Need to account for both LSTM hidden states, if LSTM.
+            if isinstance(hiddens, nn.ParameterList):
+                hiddens = [t.expand(-1, batch_size, -1).contiguous() for t in hiddens]
+            else:
+                hiddens = hiddens.expand(-1, batch_size, -1).contiguous()
+
         for layer in self.fc_layers:
             output = layer(output)
         scores = output.permute(0, 2, 1)
         return scores, hiddens
 
-    def scores_loss_hiddens(
+    def get_scores_loss_last_hiddens(
         self,
         inputs: Tensor,
         targets: Tensor,
         hiddens: Optional[Tensor] = None,
     ) -> Tuple[Tensor, Tensor, Tensor]:
-        """Returns the scores, losses, and hiddens."""
+        """Returns the scores, losses, and hiddens from the final time-step."""
         scores, hiddens = self(inputs, hiddens)
         loss = F.cross_entropy(scores, targets)
         return scores, loss, hiddens
 
-    def get_probs_hiddens(
+    def get_probs_last_hiddens(
         self, input: Tensor, hiddens: Optional[Tensor] = None
     ) -> Tuple[Tensor, Tensor]:
-        """Returns probs, hiddens, with probs shaped as
-        (batch_size, classes, seq_len).
+        """Returns probs, hiddens from the final time-step,
+        with probs shaped as (batch_size, classes, seq_len).
         """
         is_training = self.training
         self.eval()
@@ -180,8 +190,10 @@ class LitOneHotCharRNNNextLM(LitRNNLoggingBaseLM):
         Flag for initializing the bias of all fully connected layers to zero.
     recurrent_dropout : None or float, optional
         Set dropout probability between recurrent layers, if any.
-    truncated_bptt_steps : None or int or float, optional
-        Implements truncated backpropagation through time, if provided.
+    truncated_bptt_steps : int or float, optional
+        Implements truncated backpropagation through time, if provided, processing
+        the provided number of steps at a time, if int, or given fraction of the entire
+        sequence length, if float.
     save_models_to_wandb : bool, default False
         Toggles saving the best models according to validation accuracy or
         loss to wandb.
@@ -206,7 +218,7 @@ class LitOneHotCharRNNNextLM(LitRNNLoggingBaseLM):
         fc_dropout: Optional[float] = None,
         zero_fc_bias_init: bool = True,
         recurrent_dropout: Optional[float] = None,
-        truncated_bptt_steps: Optional[int] = None,
+        truncated_bptt_steps: Optional[Union[int, float]] = None,
         save_models_to_wandb: bool = False,
         **logging_kwargs: Dict[str, Union[float, int, str]]
     ) -> None:
@@ -245,6 +257,17 @@ class LitOneHotCharRNNNextLM(LitRNNLoggingBaseLM):
         if recurrent_dropout is not None:
             self._rnn_dict["dropout"] = recurrent_dropout
         self.rnn = self.rnn(**self._rnn_dict)
+        # Rather than always using zeros as the initial hidden state(s)
+        # introduce learnable inital parameters.
+        if rnn_type in ("RNN", "GRU"):
+            self.initial_hiddens = nn.Parameter(torch.randn(num_layers, 1, hidden_size))
+        elif rnn_type == "LSTM":
+            self.initial_hiddens = nn.ParameterList(
+                [
+                    nn.Parameter(torch.randn(num_layers, 1, hidden_size)),
+                    nn.Parameter(torch.randn(num_layers, 1, hidden_size)),
+                ]
+            )
 
         if self.hparams["fc_dims"] is None:
             self.hparams["fc_dims"] = []
@@ -291,11 +314,11 @@ class LitOneHotCharRNNNextLM(LitRNNLoggingBaseLM):
         probabilities.
         """
         generated_text = list(seed)
-        _, hidden = self.get_probs_hiddens(self._str_to_one_hot(seed))
+        _, hidden = self.get_probs_last_hiddens(self._str_to_one_hot(seed))
         while len(generated_text) < text_char_len:
             last_char = generated_text[-1]
             last_char_t = self._str_to_one_hot(last_char)
-            probs, hidden = self.get_probs_hiddens(last_char_t, hidden)
+            probs, hidden = self.get_probs_last_hiddens(last_char_t, hidden)
             prob_topk = probs.squeeze().topk(dim=0, k=topk)
             rand_idx = torch.multinomial(prob_topk.values, 1)
             next_char_idx = prob_topk.indices[rand_idx].item()
@@ -353,8 +376,10 @@ class LitEmbeddingRNNNextLM(LitRNNLoggingBaseLM):
         Flag for initializing the bias of all fully connected layers to zero.
     recurrent_dropout : None or float, optional
         Set dropout probability between recurrent layers, if any.
-    truncated_bptt_steps : None or int or float, optional
-        Implements truncated backpropagation through time, if provided.
+    truncated_bptt_steps : int or float, optional
+        Implements truncated backpropagation through time, if provided, processing
+        the provided number of steps at a time, if int, or given fraction of the entire
+        sequence length, if float.
     save_models_to_wandb : bool, default False
         Toggles saving the best models according to validation accuracy and
         loss to wandb.
@@ -386,7 +411,7 @@ class LitEmbeddingRNNNextLM(LitRNNLoggingBaseLM):
         fc_dropout: Optional[float] = None,
         zero_fc_bias_init: bool = True,
         recurrent_dropout: Optional[float] = None,
-        truncated_bptt_steps: Optional[int] = None,
+        truncated_bptt_steps: Optional[Union[int, float]] = None,
         save_models_to_wandb: bool = False,
         embedding_from_pretrained: Optional[Tensor] = None,
         freeze_pretrained: Optional[bool] = True,
@@ -450,6 +475,17 @@ class LitEmbeddingRNNNextLM(LitRNNLoggingBaseLM):
         if recurrent_dropout is not None:
             self._rnn_dict["dropout"] = recurrent_dropout
         self.rnn = self.rnn(**self._rnn_dict)
+        # Rather than always using zeros as the initial hidden state(s)
+        # introduce learnable inital parameters.
+        if rnn_type in ("RNN", "GRU"):
+            self.initial_hiddens = nn.Parameter(torch.randn(num_layers, 1, hidden_size))
+        elif rnn_type == "LSTM":
+            self.initial_hiddens = nn.ParameterList(
+                [
+                    nn.Parameter(torch.randn(num_layers, 1, hidden_size)),
+                    nn.Parameter(torch.randn(num_layers, 1, hidden_size)),
+                ]
+            )
 
         if self.hparams["fc_dims"] is None:
             self.hparams["fc_dims"] = []

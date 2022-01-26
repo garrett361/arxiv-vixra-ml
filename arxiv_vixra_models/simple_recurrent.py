@@ -146,14 +146,9 @@ class LitRNNLoggingBaseAV(pl.LightningModule):
             batch_size = input.shape[0]
             # Need to account for both LSTM hidden states, if LSTM.
             if isinstance(hiddens, nn.ParameterList):
-                hiddens = [
-                    t.expand(t.shape[0], batch_size, t.shape[2]).contiguous()
-                    for t in hiddens
-                ]
+                hiddens = [t.expand(-1, batch_size, -1).contiguous() for t in hiddens]
             else:
-                hiddens = hiddens.expand(
-                    hiddens.shape[0], batch_size, hiddens.shape[2]
-                ).contiguous()
+                hiddens = hiddens.expand(-1, batch_size, -1).contiguous()
         output, hiddens = self.rnn(input, hiddens)
         """Different data is fed into the fully-connected layers
         depending on self.hidden_strategy.  When the architecture is
@@ -187,14 +182,15 @@ class LitRNNLoggingBaseAV(pl.LightningModule):
             output = layer(output)
         return output.view(-1), hiddens
 
-    def scores_loss_hiddens(
+    def get_scores_loss_last_hiddens(
         self,
         inputs: Tensor,
         targets: Tensor,
         hiddens: Optional[Tensor] = None,
     ) -> Tuple[Tensor, Tensor, Tensor]:
-        """Returns the scores, losses, and hiddens, with L2 regularization applied to the weights
-        of all fully connected layers, if l2_reg.
+        """Returns the scores, losses, and hiddens from the final time-step,
+        with L2 regularization applied to the weights of all fully connected
+        layers, if l2_reg.
         """
         scores, hiddens = self(inputs, hiddens)
         loss = F.binary_cross_entropy_with_logits(scores, targets.float())
@@ -205,10 +201,11 @@ class LitRNNLoggingBaseAV(pl.LightningModule):
                     loss += self.l2_reg * (layer.weight ** 2).sum()
         return scores, loss, hiddens
 
-    def get_probs_hiddens(
+    def get_probs_last_hiddens(
         self, input: Tensor, hiddens: Optional[Tensor] = None
     ) -> Tuple[Tensor, Tensor]:
-        """Returns probs, hiddens, with probs shaped as (batch_size, )."""
+        """Returns probs, hiddens from the final time-step, with
+        probs shaped as (batch_size, )."""
         is_training = self.training
         self.eval()
         with torch.no_grad():
@@ -218,6 +215,31 @@ class LitRNNLoggingBaseAV(pl.LightningModule):
             self.train()
         return probs, hiddens
 
+    def get_rnn_output(self, input: Tensor, hiddens: Optional[Tensor] = None) -> Tensor:
+        """Returns the rnn output, i.e. the hidden states for all time-steps for
+        a given input. Mostly for attempting to interpret what the RNN is focusing on.
+        """
+        is_training = self.training
+        self.eval()
+        with torch.no_grad():
+            if hasattr(self, "embedding"):
+                input = self.embedding(input)
+            if hiddens is None:
+                hiddens = self.initial_hiddens
+                # Assuming batch_first = True, expand hiddens to the correct batch_size.
+                batch_size = input.shape[0]
+                # Need to account for both LSTM hidden states, if LSTM.
+                if isinstance(hiddens, nn.ParameterList):
+                    hiddens = [
+                        t.expand(-1, batch_size, -1).contiguous() for t in hiddens
+                    ]
+                else:
+                    hiddens = hiddens.expand(-1, batch_size, -1).contiguous()
+            output, _ = self.rnn(input, hiddens)
+        if is_training:
+            self.train()
+        return output
+
     def training_step(
         self,
         batch: Tuple[Tensor, Tensor],
@@ -225,7 +247,9 @@ class LitRNNLoggingBaseAV(pl.LightningModule):
         hiddens: Optional[Tensor] = None,
     ) -> Dict[str, Tensor]:
         inputs, targets = batch
-        scores, loss, hiddens = self.scores_loss_hiddens(inputs, targets, hiddens)
+        scores, loss, hiddens = self.get_scores_loss_last_hiddens(
+            inputs, targets, hiddens
+        )
         self.log("train_batch_loss", loss, prog_bar=True)
         for metric in self.train_metrics_dict.values():
             metric(scores.detach(), targets)
@@ -253,7 +277,7 @@ class LitRNNLoggingBaseAV(pl.LightningModule):
         self, batch: Tuple[Tensor, Tensor], batch_idx: int
     ) -> Dict[str, Tensor]:
         inputs, targets = batch
-        scores, loss, _ = self.scores_loss_hiddens(inputs, targets)
+        scores, loss, _ = self.get_scores_loss_last_hiddens(inputs, targets)
         for metric in self.val_metrics_dict.values():
             metric(scores.detach(), targets)
         return {"val_loss": loss}
@@ -407,8 +431,10 @@ class LitOneHotCharRNNAV(LitRNNLoggingBaseAV):
         Flag for initializing the bias of all fully connected layers to zero.
     recurrent_dropout : None or float, optional
         Set dropout probability between recurrent layers, if any.
-    truncated_bptt_steps : None or int or float, optional
-        Implements truncated backpropagation through time, if provided.
+    truncated_bptt_steps : int or float, optional
+        Implements truncated backpropagation through time, if provided, processing
+        the provided number of steps at a time, if int, or given fraction of the entire
+        sequence length, if float.
     save_models_to_wandb : bool, default False
         Toggles saving the best models according to validation accuracy or
         loss to wandb.
@@ -436,7 +462,7 @@ class LitOneHotCharRNNAV(LitRNNLoggingBaseAV):
         fc_dropout: Optional[float] = None,
         zero_fc_bias_init: bool = True,
         recurrent_dropout: Optional[float] = None,
-        truncated_bptt_steps: Optional[int] = None,
+        truncated_bptt_steps: Optional[Union[int, float]] = None,
         save_models_to_wandb: bool = False,
         **logging_kwargs: Dict[str, Union[float, int, str]],
     ) -> None:
@@ -585,8 +611,10 @@ class LitEmbeddingRNNAV(LitRNNLoggingBaseAV):
         Flag for initializing the bias of all fully connected layers to zero.
     recurrent_dropout : None or float, optional
         Set dropout probability between recurrent layers, if any.
-    truncated_bptt_steps : None or int or float, optional
-        Implements truncated backpropagation through time, if provided.
+    truncated_bptt_steps : int or float, optional
+        Implements truncated backpropagation through time, if provided, processing
+        the provided number of steps at a time, if int, or given fraction of the entire
+        sequence length, if float.
     save_models_to_wandb : bool, default False
         Toggles saving the best models according to validation accuracy and
         loss to wandb.
@@ -636,7 +664,7 @@ class LitEmbeddingRNNAV(LitRNNLoggingBaseAV):
         fc_dropout: Optional[float] = None,
         zero_fc_bias_init: bool = True,
         recurrent_dropout: Optional[float] = None,
-        truncated_bptt_steps: Optional[int] = None,
+        truncated_bptt_steps: Optional[Union[int, float]] = None,
         save_models_to_wandb: bool = False,
         embedding_from_pretrained: Optional[Tensor] = None,
         freeze_pretrained: Optional[bool] = True,
