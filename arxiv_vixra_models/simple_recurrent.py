@@ -1,5 +1,4 @@
 from copy import deepcopy
-
 from typing import Dict, Tuple, Sequence, Optional, Union
 from typing_extensions import Literal
 import warnings
@@ -217,7 +216,8 @@ class LitRNNLoggingBaseAV(pl.LightningModule):
 
     def get_rnn_output(self, input: Tensor, hiddens: Optional[Tensor] = None) -> Tensor:
         """Returns the rnn output, i.e. the hidden states for all time-steps for
-        a given input. Mostly for attempting to interpret what the RNN is focusing on.
+        a given input. Mostly a convenience fucntion for attempting to interpret
+        what the RNN is focusing on.
         """
         is_training = self.training
         self.eval()

@@ -18,7 +18,7 @@ class LitMinimalLoggingBase(pl.LightningModule):
 
     Must overwrite the following methods to use:
     - forward
-    - scores_loss
+    - get_scores_loss
     - configure optimizers
 
     Parameters
@@ -68,11 +68,11 @@ class LitMinimalLoggingBase(pl.LightningModule):
         """
         raise NotImplementedError("Must overwrite the forward method.")
 
-    def scores_loss(self, inputs: Tensor, targets: Tensor) -> Tuple[Tensor, Tensor]:
+    def get_scores_loss(self, inputs: Tensor, targets: Tensor) -> Tuple[Tensor, Tensor]:
         """
         Overwrite. Expected to return (scores, losses) tuple.
         """
-        raise NotImplementedError("Must overwrite the scores_loss method.")
+        raise NotImplementedError("Must overwrite the get_scores_loss method.")
 
     def configure_optimizers(self):
         """Overwrite."""
@@ -82,7 +82,7 @@ class LitMinimalLoggingBase(pl.LightningModule):
         self, batch: Tuple[Tensor, Tensor], batch_idx: int
     ) -> Dict[str, Tensor]:
         inputs, targets = batch
-        scores, loss = self.scores_loss(inputs, targets)
+        scores, loss = self.get_scores_loss(inputs, targets)
         for metric in self.train_metrics_dict.values():
             metric(scores.detach(), targets)
 
@@ -102,7 +102,7 @@ class LitMinimalLoggingBase(pl.LightningModule):
         self, batch: Tuple[Tensor, Tensor], batch_idx: int
     ) -> Dict[str, Tensor]:
         inputs, targets = batch
-        scores, loss = self.scores_loss(inputs, targets)
+        scores, loss = self.get_scores_loss(inputs, targets)
         for metric in self.val_metrics_dict.values():
             metric(scores.detach(), targets)
         return {"val_loss": loss}
@@ -230,7 +230,7 @@ class LitOneHotFC(LitMinimalLoggingBase):
             output = layer(output)
         return output.view(-1)
 
-    def scores_loss(self, inputs: Tensor, targets: Tensor) -> Tuple[Tensor]:
+    def get_scores_loss(self, inputs: Tensor, targets: Tensor) -> Tuple[Tensor]:
         scores = self(inputs)
         loss = F.binary_cross_entropy_with_logits(scores, targets.float())
         return scores, loss
