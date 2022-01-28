@@ -19,12 +19,11 @@ class LitRNNLoggingBaseAV(pl.LightningModule):
 
     Description
     ----------
-    Written such that one-hot and embedding models need only subclass
-    LitRNNLoggingBaseAV with __init__ method overwritten.  Expects
-    fully-connected layers after recurrent structure to be in a ModuleList
-    instance assigned to an fc_layers attr, any Embedding layer to be
-    similarly assigned to an embedding attr, and the recurrent layers
-    to be assign to an rnn attr.
+    To be subclassed. LitRNNLoggingBaseAV expects the subclass to have the following:
+    - An RNN layer asssigned to an `rnn` attr.
+    - All fully connected layers following the RNN to be organized in a ModuleList,
+    assigned as an `fc_layers` attr.
+    - An Embedding layer (if applicable) assigned to an `embedding` attr.
 
     Parameters
     ----------
